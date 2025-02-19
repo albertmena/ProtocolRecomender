@@ -33,9 +33,12 @@ Goes to the path the Scipion is installed
 run: python3 protocolsCollector.py
 If INSTALL_PLUGINS is True will install all the plugins
 '''
+import os
+
 INSTALL_PLUGINS = False
 SCIPION_ENVIROMENT_NAME = "scipionProtocolRecomender"
 PATH_SCIPION_INSTALLED = '/home/agarcia/develops/scipionProtocolRecomender'
+SITE_PACKAGES = '/home/agarcia/miniconda/envs/scipionProtocolRecomender/lib/python3.8/site-packages/'
 listOfPlugins = []
 pluginsNoInstalled = []
 dictPlugins = {}
@@ -77,8 +80,52 @@ def installAllPlugins():
 if INSTALL_PLUGINS: installAllPlugins()
 
 #### List protocols for each plugin
-for plugin in dictPlugins.keys():
-    nameFolder = dictPlugins[key]
+protocol_dict = {}
+result = subprocess.run(f'./scipion3 protocols', shell=True, check=True,cwd=PATH_SCIPION_INSTALLED, capture_output=True, text=True)
+protocolsStr = result.stdout
+protocolsStr = protocolsStr[protocolsStr.find('LABEL') + 5:]
+for line in protocolsStr.strip().split("\n"):
+    parts = line.split()
+    if len(parts) >= 2:
+        package = parts[0]
+        protocol = parts[1]
+        if package not in protocol_dict:
+            protocol_dict[package] = []
+        protocol_dict[package].append(protocol)
+
+
+### ASK DEEPSEEK DOR DESCRIPTION
+from ollama import chat
+from ollama import ChatResponse
+
+questionForProtocols= 'Describe everything this Scipion protocol does. First, provide a summary (200 words) with the main keywords. Then, explain what does all the parameter (defineParameters) (200 words). Finally, describe the inputs and outputs (200 words). Omit any tittle in the three steps: \n'
+splittersSummary1 = 'defineParameters'
+splittersSummary2 = 'Inputs and Outputs'
+
+def responseDeepSeek(ProtocolQuestion:str ):
+    response: ChatResponse = chat(
+        model=model, messages=[
+            {'role': 'user',
+            'content': questionForProtocols + ProtocolQuestion,
+            }
+        ],stream=False
+    )
+    resp = response.message.content
+    print(resp)
+    summary = resp[resp.find('</think>') + 8:]
+    return summary
+
+model = "deepseek-r1:14b" #9GB 14.8B parameters
+
+def protocol2Text(pathProtocol):
+    with open(pathProtocol, 'r') as archivo:
+        return archivo.read()
+
+for plugin in protocol_dict.keys():
+    for protocol in protocol_dict[plugin]:
+        responseDeepSeek(protocol2Text(os.path.join(SITE_PACKAGES, plugin, 'protocols', protocol)))
+
+
 
 #### Ask deepseek about description of each protocol
 
