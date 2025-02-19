@@ -1,4 +1,4 @@
-main.py:
+# main.py
 
 Requirements
 pip install -qU langchain-huggingface
@@ -6,7 +6,7 @@ pip install -qU langchain-huggingface
 
 
 
-protocolsCollector.py:
+#  protocolsCollector.py
 
 Create a scipion installation with an Enviroment named:
 python3 -m scipioninstaller -conda -n scipionProtocolRecomender -noAsk scipionProtocolRecomender
