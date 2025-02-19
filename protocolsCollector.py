@@ -33,7 +33,7 @@ Goes to the path the Scipion is installed
 run: python3 protocolsCollector.py
 If INSTALL_PLUGINS is True will install all the plugins
 '''
-INSTALL_PLUGINS = True
+INSTALL_PLUGINS = False
 SCIPION_ENVIROMENT_NAME = "scipionProtocolRecomender"
 PATH_SCIPION_INSTALLED = '/home/agarcia/develops/scipionProtocolRecomender'
 listOfPlugins = []
@@ -78,7 +78,7 @@ if INSTALL_PLUGINS: installAllPlugins()
 
 #### List protocols for each plugin
 for plugin in dictPlugins.keys():
-    pass
+    nameFolder = dictPlugins[key]
 
 #### Ask deepseek about description of each protocol
 
