@@ -32,25 +32,27 @@ An index map and a JSON file with the map for the index are required. (The `inde
 
 A Scipion enviroment has to be created. The script can install all the plugins of Scipion, takes all the protocol, embedd all of them and save it in an index map (numpy array) and a json file with the plugin-protocol-index references.
 
-## Requirements
+## Preparation
 An Scipion enviroment with Scipion installed  python3 -m scipioninstaller -conda -n scipionProtocolRecomender -noAsk scipionProtocolRecomender
-In terminal, activate the enviroment
-conda activatescipionProtocolRecomender
-Goes to the path the Scipion is installed
-run: python3 indexGenerator.py
-If INSTALL_PLUGINS is True will install all the plugins
+1. In terminal, activate the enviroment
+2. Goes to the path the Scipion is installed
+3. ```bash
+    python3 indexGenerator.py
+    ```
+4. If INSTALL_PLUGINS is True will install all the plugins
 
-os
-pathlib
-requests
-subprocess
-ollama
-  model 43GB:
+## Requirements
+- os
+- pathlib
+- requests
+- subprocess
+- ollama
+  - model 43GB:
     ```bash
     ollama run deepseek-r1:70b
     ```
     model = "deepseek-r1:70b"
-  model 404GB
+  - model 404GB
     ```bash
     ollama run deepseek-r1:671b
     ```
