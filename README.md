@@ -17,6 +17,8 @@ An index map and a JSON file with the map for the index are required. (The `inde
 ### Embedding
   HuggingFaceEmbeddings
   ```bash
+  curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh
+  source $HOME/.cargo/env
   pip install -qU langchain-huggingface
   ```
   model_name="sentence-transformers/all-mpnet-base-v2"

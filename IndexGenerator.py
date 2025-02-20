@@ -32,7 +32,7 @@ from ollama import chat
 from ollama import ChatResponse
 import ast
 from langchain_huggingface import HuggingFaceEmbeddings
-from numpy import np
+import numpy as np
 import json
 from datetime import date
 
@@ -68,7 +68,7 @@ dictPlugins['chem'] = 'pwchem'
 listOfPlugins.append('scipion-pkpd')
 listOfPlugins.append('scipion-chem')
 
-#### INSTALL PLUGINS WITHOUS BINARIES
+#### INSTALL PLUGINS WITHOUT BINARIES
 
 def installAllPlugins():
     for plugin in dictPlugins.keys():
@@ -95,6 +95,7 @@ protocol_dict = {}
 result = subprocess.run(f'./scipion3 protocols', shell=True, check=True,cwd=PATH_SCIPION_INSTALLED, capture_output=True, text=True)
 protocolsStr = result.stdout
 protocolsStr = protocolsStr[protocolsStr.find('LABEL') + 5:]
+
 for line in protocolsStr.strip().split("\n"):
     parts = line.split()
     if len(parts) >= 2:
@@ -106,6 +107,7 @@ for line in protocolsStr.strip().split("\n"):
 
 
 protocol_dict["chimera"] = protocol_dict.pop("chimerax")
+
 blackList = ['pyworkflowtests']
 for p in blackList:
     protocol_dict.pop(p, None)
@@ -142,7 +144,7 @@ print(f'Total protocols registred: {totalProtocols}')
 
 ### ASK DEEPSEEK DOR DESCRIPTION
 
-questionForProtocols= 'Describe everything this Scipion protocol does. First, provide a summary (200 words) with the main keywords. Then, explain what does all the parameter (defineParameters) (200 words). Finally, describe the inputs and outputs (200 words). Omit any tittle in the three steps: \n'
+questionForProtocols= 'Describe everything this Scipion protocol does in three blocs divided each one by a string like this ------. First, provide a summary (200 words) with the main keywords. Then, explain what does all the parameter (defineParameters) (200 words). Finally, describe the inputs and outputs (200 words). Omit any tittle in the three blocs: \n'
 splittersSummary1 = 'defineParameters'
 splittersSummary2 = 'Inputs and Outputs'
 
