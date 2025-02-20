@@ -42,6 +42,7 @@ import ast
 from langchain_huggingface import HuggingFaceEmbeddings
 from numpy import np
 import json
+from datetime import date
 
 #####CONSTANTS
 SUMMARY = 'summary'
@@ -230,15 +231,28 @@ for key in dictProtocolFile.keys():
 
 ##### Saving vectors
 indexMapArray = np.array()
-dictIndexMap = {'header': '',
-                'data': '',
+dictIndexMap = {'header':{"description": "This JSON file contains sentence embeddings.",
+                          "index_info": "Each value represent the index in the indexMap.npy that represent the embeddig of each phrase.",
+                          "usage": "These embeddings can be easy search with the plugin, protocol and bloc (summary, parameters, IO)."
+                          f'Date: {date.today()}\n',},
+                'DATA': '',
                 }
+
+def savingDictListVect(dictIndexMap, plugin, protocol, ):
+    dictIndexMap['DATA'][plugin][protocol][SUMMARY] = list(
+        range(dictVectors[key][protocol][SUMMARY]))
+    dictIndexMap['DATA'][plugin][protocol][PARAMETERS] = list(
+        range(dictVectors[key][protocol][PARAMETERS]))
+    dictIndexMap['DATA'][plugin][protocol][IO] = list(
+        range(dictVectors[key][protocol][IO]))
+
+
 for plugin in dictVectors.keys():
     for protocol in dictVectors[plugin]:
         indexMapArray = np.vstack([indexMapArray, dictVectors[key][protocol][SUMMARY]])
         indexMapArray = np.vstack([indexMapArray, dictVectors[key][protocol][PARAMETERS]])
         indexMapArray = np.vstack([indexMapArray, dictVectors[key][protocol][IO]])
-
+        savingDictListVect(dictIndexMap, plugin, protocol)
 
 
 np.save('indexMap.npy', indexMapArray)
