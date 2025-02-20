@@ -9,7 +9,7 @@ An index map and a JSON file with the map for the index are required. (The `inde
 - [DeepSeek Model](https://ollama.com/library/deepseek-r1:14b)
 - Install `ollama` and run the following command:
   ```bash
-  ollama run deepseek-r1:14b
+  ollama pull deepseek-r1:14b
   ```
   model = "deepseek-r1:14b"
 
@@ -46,15 +46,17 @@ An Scipion enviroment with Scipion installed  python3 -m scipioninstaller -conda
 - pathlib
 - requests
 - subprocess
+- json
+- numpy
 - ollama
   - model 43GB:
     ```bash
-    ollama run deepseek-r1:70b
+    ollama pull deepseek-r1:70b
     ```
     model = "deepseek-r1:70b"
   - model 404GB
     ```bash
-    ollama run deepseek-r1:671b
+    ollama pull deepseek-r1:671b
     ```
     model = "deepseek-r1:671b"
   

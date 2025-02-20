@@ -39,9 +39,16 @@ import subprocess
 from ollama import chat
 from ollama import ChatResponse
 import ast
+from langchain_huggingface import HuggingFaceEmbeddings
+from numpy import np
+import json
 
 #####CONSTANTS
-
+SUMMARY = 'summary'
+PARAMETERS = 'parameters'
+IO = 'IO'
+embeddings = HuggingFaceEmbeddings(model_name="sentence-transformers/all-mpnet-base-v2")
+model = "deepseek-r1:14b" #9GB 14.8B parameters
 INSTALL_PLUGINS = False
 SCIPION_ENVIROMENT_NAME = "scipionProtocolRecomender"
 PATH_SCIPION_INSTALLED = '/home/agarcia/develops/scipionProtocolRecomender'
@@ -62,6 +69,11 @@ if response.status_code == 200:
         dictPlugins[key] = value["name"]
 else:
     print(f"Error {response.status_code}: No se pudo obtener el JSON")
+
+dictPlugins['pkpd'] = 'pkpd'
+dictPlugins['chem'] = 'pwchem'
+listOfPlugins.append('scipion-pkpd')
+listOfPlugins.append('scipion-chem')
 
 #### INSTALL PLUGINS WITHOUS BINARIES
 
@@ -101,7 +113,7 @@ for line in protocolsStr.strip().split("\n"):
 
 
 protocol_dict["chimera"] = protocol_dict.pop("chimerax")
-blackList = ['pyworkflowtests', 'xmipp2']
+blackList = ['pyworkflowtests']
 for p in blackList:
     protocol_dict.pop(p, None)
 
@@ -109,7 +121,7 @@ dictProtocolFile = {}
 dictProtocolFile = {}
 from pathlib import Path
 for plugin in protocol_dict.keys():
-    print(f'PLUGIN: {plugin}')
+    #print(f'PLUGIN: {plugin}')
     dictProtocolFile[plugin] = {}
     protocolFiles = Path(os.path.join(SITE_PACKAGES, plugin, 'protocols'))
     for file in protocolFiles.iterdir():
@@ -141,26 +153,70 @@ questionForProtocols= 'Describe everything this Scipion protocol does. First, pr
 splittersSummary1 = 'defineParameters'
 splittersSummary2 = 'Inputs and Outputs'
 
-def responseDeepSeek(ProtocolQuestion:str ):
+def responseDeepSeek(ProtocolStr:str ):
     response: ChatResponse = chat(
         model=model, messages=[
             {'role': 'user',
-            'content': questionForProtocols + ProtocolQuestion,
+            'content': questionForProtocols + ProtocolStr,
             }
         ],stream=False
     )
     resp = response.message.content
-    print(resp)
     summary = resp[resp.find('</think>') + 8:]
     return summary
 
-model = "deepseek-r1:14b" #9GB 14.8B parameters
+def splitPhrasesDescription(stringFull):
+    summaryPhrases = stringFull[:stringFull.find(splittersSummary1)].split('.')
+    parametersPhrases = stringFull[stringFull.find(splittersSummary1):stringFull.find(splittersSummary2)].split('.')
+    IOPhrases = stringFull[stringFull.find(splittersSummary2):].split('.')
+
+    return summaryPhrases, parametersPhrases, IOPhrases
+
 
 def protocol2Text(pathProtocol):
     with open(pathProtocol, 'r') as archivo:
         return archivo.read()
 
-responseDeepSeek(protocol2Text(os.path.join(SITE_PACKAGES, plugin, 'protocols', protocol)))
+
+def classTexted(scriptTexted):
+    tree = ast.parse(scriptTexted)
+    for node in ast.walk(tree):
+        if isinstance(node, ast.ClassDef):
+            if node.name in protocol:
+                start_line = node.lineno - 1  # ast usa 1-based indexing
+                end_line = node.end_lineno if hasattr(node,
+                                                      "end_lineno") else None
+                if end_line is None:
+                    for child_node in ast.walk(node):
+                        if hasattr(child_node,
+                                   "lineno") and child_node.lineno > start_line:
+                            end_line = child_node.lineno
+                return "\n".join(
+                    scriptTexted.splitlines()[start_line:end_line])
+
+
+def embedPhrases(listPhrases):
+    listVectors = []
+    for p in listPhrases:
+        listVectors.append(embeddings.embed_query(p))
+    return listVectors
+
+
+dictVectors = {}
+for key in dictProtocolFile.keys():
+    dictVectors[key] = {}
+    for protocol in dictProtocolFile[key]:
+        dictVectors[key][protocol] = {}
+        file = dictProtocolFile[key][protocol]
+        with open(file, "r", encoding="utf-8") as f:
+            scriptTexted = f.read()
+            protocolString = classTexted(scriptTexted)
+            descriptionProtocol = responseDeepSeek(ProtocolStr=protocolString)
+            summaryPhrases, parametersPhrases, IOPhrases = splitPhrasesDescription(descriptionProtocol)
+            dictVectors[key][protocol][SUMMARY] = embedPhrases(summaryPhrases)
+            dictVectors[key][protocol][PARAMETERS] = embedPhrases(parametersPhrases)
+            dictVectors[key][protocol][IO] = embedPhrases(IOPhrases)
+
 
 
 #### Split description
@@ -173,3 +229,44 @@ responseDeepSeek(protocol2Text(os.path.join(SITE_PACKAGES, plugin, 'protocols', 
 
 
 ##### Saving vectors
+indexMapArray = np.array()
+dictIndexMap = {'header': '',
+                'data': '',
+                }
+for plugin in dictVectors.keys():
+    for protocol in dictVectors[plugin]:
+        indexMapArray = np.vstack([indexMapArray, dictVectors[key][protocol][SUMMARY]])
+        indexMapArray = np.vstack([indexMapArray, dictVectors[key][protocol][PARAMETERS]])
+        indexMapArray = np.vstack([indexMapArray, dictVectors[key][protocol][IO]])
+
+
+
+np.save('indexMap.npy', indexMapArray)
+with open("indexMap.json", "w", encoding="utf-8") as f:
+    json.dump(dictIndexMap, f, indent=4, ensure_ascii=False)
+
+
+
+
+
+
+#list plugins
+'''Plugins installed (61): ['scipion-em-eman2', 'scipion-em-cryoassess', 
+'scipion-em-resmap', 'scipion-em-deepfinder', 'scipion-em-relion', 
+'scipion-em-cryosparc2', 'scipion-em-cryosparc2', 'scipion-em-imod', 
+
+'scipion-em-embuild', 'scipion-em-pyseg', 'scipion-em-repic', 'scipion-em-flexutils',
+'scipion-em-kiharalab', 'scipion-em-spoc', 'scipion-em-fsc3d', 'scipion-em-locscale',
+'scipion-em-cistem', 'scipion-em-tomo3d', 'scipion-em-roodmus', 'scipion-em-fidder', 
+'scipion-em-imagic', 'scipion-em-atomstructutils', 'scipion-em-cryodrgn', 
+'scipion-em-motioncorr', 'scipion-em-facilities', 'scipion-em-warp', 'scipion-em-gctf',
+'scipion-em-phenix', 'scipion-em-atsas', 'scipion-em-spider', 'scipion-em-aretomo',
+'scipion-em-sidesplitter', 'scipion-em-ccp4', 'scipion-em-empiar', 'scipion-em-chimera',
+'scipion-em-tomoviz', 'scipion-em-appion', 'scipion-em-gautomatch', 'scipion-em-emready',
+'scipion-em-sphire', 'scipion-em-xmipp2', 'scipion-em-tomosegmemtv', 'scipion-em-continuousflex',
+'scipion-em-cryoef', 'scipion-em-reliontomo', 'scipion-em-isonet', 'scipion-em-topaz',
+'scipion-em-bsoft', 'scipion-em-emantomo', 'scipion-em-emxlib', 'scipion-em-dynamo', 
+'scipion-em-localrec', 'scipion-em-modelangelo', 'scipion-em-tomo', 'scipion-em-susantomo',
+'scipion-em-xmipp', 'scipion-em-xmipptomo', 'scipion-em-tomotwin', 'scipion-em-bamfordlab',
+'scipion-em-novactf', 'scipion-em-prody']
+'''
