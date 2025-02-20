@@ -25,14 +25,6 @@
 # *
 # **************************************************************************
 
-'''Create a scipion installation with an Enviroment named:
-python3 -m scipioninstaller -conda -n scipionProtocolRecomender -noAsk scipionProtocolRecomender
-In terminal, activate the enviroment
-conda activatescipionProtocolRecomender
-Goes to the path the Scipion is installed
-run: python3 IndexGenerator.py
-If INSTALL_PLUGINS is True will install all the plugins
-'''
 import os
 import requests
 import subprocess
@@ -166,6 +158,7 @@ def responseDeepSeek(ProtocolStr:str ):
     summary = resp[resp.find('</think>') + 8:]
     return summary
 
+
 def splitPhrasesDescription(stringFull):
     summaryPhrases = stringFull[:stringFull.find(splittersSummary1)].split('.')
     parametersPhrases = stringFull[stringFull.find(splittersSummary1):stringFull.find(splittersSummary2)].split('.')
@@ -185,8 +178,7 @@ def classTexted(scriptTexted):
         if isinstance(node, ast.ClassDef):
             if node.name in protocol:
                 start_line = node.lineno - 1  # ast usa 1-based indexing
-                end_line = node.end_lineno if hasattr(node,
-                                                      "end_lineno") else None
+                end_line = node.end_lineno if hasattr(node,"end_lineno") else None
                 if end_line is None:
                     for child_node in ast.walk(node):
                         if hasattr(child_node,
@@ -233,17 +225,19 @@ for key in dictProtocolFile.keys():
 indexMapArray = np.array()
 dictIndexMap = {'header':{"description": "This JSON file contains sentence embeddings.",
                           "index_info": "Each value represent the index in the indexMap.npy that represent the embeddig of each phrase.",
-                          "usage": "These embeddings can be easy search with the plugin, protocol and bloc (summary, parameters, IO)."
-                          f'Date: {date.today()}\n',},
-                'DATA': '',
+                          "usage": "These embeddings can be easy search with the plugin, protocol and bloc (summary, parameters, IO).",
+                          "Date": f'{date.today()}\n',
+                          "Plugins collected": f'{dictProtocolFile.keys()}'
+                },
+                "DATA": None,
                 }
 
 def savingDictListVect(dictIndexMap, plugin, protocol, ):
-    dictIndexMap['DATA'][plugin][protocol][SUMMARY] = list(
+    dictIndexMap["DATA"][plugin][protocol][SUMMARY] = list(
         range(dictVectors[key][protocol][SUMMARY]))
-    dictIndexMap['DATA'][plugin][protocol][PARAMETERS] = list(
+    dictIndexMap["DATA"][plugin][protocol][PARAMETERS] = list(
         range(dictVectors[key][protocol][PARAMETERS]))
-    dictIndexMap['DATA'][plugin][protocol][IO] = list(
+    dictIndexMap["DATA"][plugin][protocol][IO] = list(
         range(dictVectors[key][protocol][IO]))
 
 
