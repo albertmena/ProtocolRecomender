@@ -358,4 +358,3 @@ print(f"Third similar protocol in IO: {listProtocolsIOShorted[int(dictResults['I
 
 
 ######PRINT RESULTS
-print('END')

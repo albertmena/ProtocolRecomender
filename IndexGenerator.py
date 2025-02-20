@@ -30,10 +30,17 @@ python3 -m scipioninstaller -conda -n scipionProtocolRecomender -noAsk scipionPr
 In terminal, activate the enviroment
 conda activatescipionProtocolRecomender
 Goes to the path the Scipion is installed
-run: python3 protocolsCollector.py
+run: python3 IndexGenerator.py
 If INSTALL_PLUGINS is True will install all the plugins
 '''
 import os
+import requests
+import subprocess
+from ollama import chat
+from ollama import ChatResponse
+import ast
+
+#####CONSTANTS
 
 INSTALL_PLUGINS = False
 SCIPION_ENVIROMENT_NAME = "scipionProtocolRecomender"
@@ -42,8 +49,8 @@ SITE_PACKAGES = '/home/agarcia/miniconda/envs/scipionProtocolRecomender/lib/pyth
 listOfPlugins = []
 pluginsNoInstalled = []
 dictPlugins = {}
-#### List of plugins
-import requests
+
+#### LIST OF PLUGINS
 
 urlAllPluginsRegistered = "https://scipion.i2pc.es/getplugins/"
 response = requests.get(urlAllPluginsRegistered)
@@ -56,10 +63,8 @@ if response.status_code == 200:
 else:
     print(f"Error {response.status_code}: No se pudo obtener el JSON")
 
-#### Install plugins without binaries
-import subprocess
+#### INSTALL PLUGINS WITHOUS BINARIES
 
-# Nombre del entorno y los paquetes a instalar
 def installAllPlugins():
     for plugin in dictPlugins.keys():
         activate_env = f"./scipion3 installp -p  {plugin} --noBin"
@@ -79,7 +84,8 @@ def installAllPlugins():
 
 if INSTALL_PLUGINS: installAllPlugins()
 
-#### List protocols for each plugin
+#### LIST PROTOCOLS
+
 protocol_dict = {}
 result = subprocess.run(f'./scipion3 protocols', shell=True, check=True,cwd=PATH_SCIPION_INSTALLED, capture_output=True, text=True)
 protocolsStr = result.stdout
@@ -94,9 +100,42 @@ for line in protocolsStr.strip().split("\n"):
         protocol_dict[package].append(protocol)
 
 
+protocol_dict["chimera"] = protocol_dict.pop("chimerax")
+blackList = ['pyworkflowtests', 'xmipp2']
+for p in blackList:
+    protocol_dict.pop(p, None)
+
+dictProtocolFile = {}
+dictProtocolFile = {}
+from pathlib import Path
+for plugin in protocol_dict.keys():
+    print(f'PLUGIN: {plugin}')
+    dictProtocolFile[plugin] = {}
+    protocolFiles = Path(os.path.join(SITE_PACKAGES, plugin, 'protocols'))
+    for file in protocolFiles.iterdir():
+        if file.is_file() and file.suffix == ".py" and file.name != "__init__.py":
+            with open(file, "r", encoding="utf-8") as f:
+                scriptTexted = f.read()
+                tree = ast.parse(scriptTexted)
+                for node in ast.walk(tree):
+                    if isinstance(node, ast.ClassDef):
+                        if node.name in protocol_dict[plugin]:
+                            #print(f"Clase encontrada: {node.name}")
+                            dictProtocolFile[plugin].update({node.name: file})
+
+
+print(f'Registred: {len(dictProtocolFile)} plugins')
+totalProtocols = 0
+for key in dictProtocolFile.keys():
+    numProts = len(dictProtocolFile[key])
+    totalProtocols+= numProts
+    print(f'{key}: {len(dictProtocolFile[key])} protocols')
+
+print(f'Total protocols registred: {totalProtocols}')
+
+
+
 ### ASK DEEPSEEK DOR DESCRIPTION
-from ollama import chat
-from ollama import ChatResponse
 
 questionForProtocols= 'Describe everything this Scipion protocol does. First, provide a summary (200 words) with the main keywords. Then, explain what does all the parameter (defineParameters) (200 words). Finally, describe the inputs and outputs (200 words). Omit any tittle in the three steps: \n'
 splittersSummary1 = 'defineParameters'
@@ -121,13 +160,7 @@ def protocol2Text(pathProtocol):
     with open(pathProtocol, 'r') as archivo:
         return archivo.read()
 
-for plugin in protocol_dict.keys():
-    for protocol in protocol_dict[plugin]:
-        responseDeepSeek(protocol2Text(os.path.join(SITE_PACKAGES, plugin, 'protocols', protocol)))
-
-
-
-#### Ask deepseek about description of each protocol
+responseDeepSeek(protocol2Text(os.path.join(SITE_PACKAGES, plugin, 'protocols', protocol)))
 
 
 #### Split description
