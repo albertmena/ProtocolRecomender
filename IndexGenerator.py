@@ -271,26 +271,3 @@ with open("indexMap.json", "w", encoding="utf-8") as f:
 
 
 
-
-
-
-#list plugins
-'''Plugins installed (61): ['scipion-em-eman2', 'scipion-em-cryoassess', 
-'scipion-em-resmap', 'scipion-em-deepfinder', 'scipion-em-relion', 
-'scipion-em-cryosparc2', 'scipion-em-cryosparc2', 'scipion-em-imod', 
-
-'scipion-em-embuild', 'scipion-em-pyseg', 'scipion-em-repic', 'scipion-em-flexutils',
-'scipion-em-kiharalab', 'scipion-em-spoc', 'scipion-em-fsc3d', 'scipion-em-locscale',
-'scipion-em-cistem', 'scipion-em-tomo3d', 'scipion-em-roodmus', 'scipion-em-fidder', 
-'scipion-em-imagic', 'scipion-em-atomstructutils', 'scipion-em-cryodrgn', 
-'scipion-em-motioncorr', 'scipion-em-facilities', 'scipion-em-warp', 'scipion-em-gctf',
-'scipion-em-phenix', 'scipion-em-atsas', 'scipion-em-spider', 'scipion-em-aretomo',
-'scipion-em-sidesplitter', 'scipion-em-ccp4', 'scipion-em-empiar', 'scipion-em-chimera',
-'scipion-em-tomoviz', 'scipion-em-appion', 'scipion-em-gautomatch', 'scipion-em-emready',
-'scipion-em-sphire', 'scipion-em-xmipp2', 'scipion-em-tomosegmemtv', 'scipion-em-continuousflex',
-'scipion-em-cryoef', 'scipion-em-reliontomo', 'scipion-em-isonet', 'scipion-em-topaz',
-'scipion-em-bsoft', 'scipion-em-emantomo', 'scipion-em-emxlib', 'scipion-em-dynamo', 
-'scipion-em-localrec', 'scipion-em-modelangelo', 'scipion-em-tomo', 'scipion-em-susantomo',
-'scipion-em-xmipp', 'scipion-em-xmipptomo', 'scipion-em-tomotwin', 'scipion-em-bamfordlab',
-'scipion-em-novactf', 'scipion-em-prody']
-'''
