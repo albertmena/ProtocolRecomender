@@ -86,11 +86,7 @@ def runInstallPlugin(plugin, noBin:bool=True):
         pluginsNoInstalled.append(plugin)
 
 def installAllPlugins():
-
-    runInstallPlugin('scipion-em-xmipp', noBin=False)
-    dictPlugins.pop('scipion-em-xmipp', None)
     dictPlugins.pop('scipion-em-xmipp2', None)
-
     for plugin in dictPlugins.keys():
         runInstallPlugin(plugin)
         subprocess.run(f'./scipion3 pip list', shell=True, check=True, cwd=PATH_SCIPION_INSTALLED)

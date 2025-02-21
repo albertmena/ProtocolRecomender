@@ -34,6 +34,10 @@ An index map and a JSON file with the map for the index are required. (The `inde
 #  indexGenerator
 
 A Scipion enviroment has to be created. The script can install all the plugins of Scipion, takes all the protocol, embedd all of them and save it in an index map (numpy array) and a json file with the plugin-protocol-index references.
+Maybe you need to update the compilers in the conda scipion env: 
+```bash
+  scipion3 run conda install -c conda-forge libstdcxx-ng
+```
 
 ## Preparation
 An Scipion enviroment with Scipion installed  python3 -m scipioninstaller -conda -n scipionProtocolRecomender -noAsk scipionProtocolRecomender
