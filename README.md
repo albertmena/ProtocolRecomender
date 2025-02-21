@@ -15,6 +15,8 @@ An index map and a JSON file with the map for the index are required. (The `inde
   ollama pull deepseek-r1:14b
   ollama list
   ```
+  models located at .ollama/models/blob
+
   model = "deepseek-r1:14b"
   model = "deepseek-r1:32b"
   model = "deepseek-r1:671b"
