@@ -63,25 +63,36 @@ if response.status_code == 200:
 else:
     print(f"Error {response.status_code}: No se pudo obtener el JSON")
 
-dictPlugins['pkpd'] = 'pkpd'
-dictPlugins['chem'] = 'pwchem'
-listOfPlugins.append('scipion-pkpd')
-listOfPlugins.append('scipion-chem')
+# dictPlugins['pkpd'] = 'pkpd'
+# dictPlugins['chem'] = 'pwchem'
+# listOfPlugins.append('scipion-pkpd')
+# listOfPlugins.append('scipion-chem')
 
 #### INSTALL PLUGINS WITHOUT BINARIES
 
+def runInstallPlugin(plugin, noBin:bool=True):
+    if noBin: flagBin = '--noBin'
+    else: flagBin=''
+    activate_env = f"./scipion3 installp -p  {plugin} {flagBin}"
+    try:
+        result = subprocess.run(activate_env, shell=True, check=True,
+                                cwd=PATH_SCIPION_INSTALLED)
+        if result.returncode == 0:
+            print(f"{plugin}: Installed\n\n")
+        else:
+            print(f"{plugin} Error: {result}\n\n")
+    except Exception as e:
+        print(f'Error: {e}')
+        pluginsNoInstalled.append(plugin)
+
 def installAllPlugins():
+
+    runInstallPlugin('scipion-em-xmipp', noBin=False)
+    dictPlugins.pop('scipion-em-xmipp', None)
+    dictPlugins.pop('scipion-em-xmipp2', None)
+
     for plugin in dictPlugins.keys():
-        activate_env = f"./scipion3 installp -p  {plugin} --noBin"
-        try:
-            result = subprocess.run(activate_env, shell=True, check=True, cwd=PATH_SCIPION_INSTALLED)
-            if result.returncode == 0:
-                print(f"{plugin}: Installed\n\n")
-            else:
-                print(f"{plugin} Error: {result}\n\n")
-        except Exception as e:
-            print(f'Error: {e}')
-            pluginsNoInstalled.append(plugin)
+        runInstallPlugin(plugin)
         subprocess.run(f'./scipion3 pip list', shell=True, check=True, cwd=PATH_SCIPION_INSTALLED)
 
     pluginsInstalled = [p for p in listOfPlugins if p not in pluginsNoInstalled]
@@ -108,7 +119,7 @@ for line in protocolsStr.strip().split("\n"):
 
 protocol_dict["chimera"] = protocol_dict.pop("chimerax")
 
-blackList = ['pyworkflowtests']
+blackList = ['pyworkflowtests', 'xmipp2']
 for p in blackList:
     protocol_dict.pop(p, None)
 
