@@ -245,21 +245,22 @@ dictIndexMap = {'header':{"description": "This JSON file contains sentence embed
                 "DATA": None,
                 }
 
-def savingDictListVect(dictIndexMap, plugin, protocol, ):
-    dictIndexMap["DATA"][plugin][protocol][SUMMARY] = list(
-        range(dictVectors[key][protocol][SUMMARY]))
-    dictIndexMap["DATA"][plugin][protocol][PARAMETERS] = list(
-        range(dictVectors[key][protocol][PARAMETERS]))
-    dictIndexMap["DATA"][plugin][protocol][IO] = list(
-        range(dictVectors[key][protocol][IO]))
+def savingDictListVect2(dictIndexMap, plugin, protocol, rowCounter):
+    for b in [SUMMARY, PARAMETERS, IO]:
+        for item in list(range(dictVectors[key][protocol][b])):
+            stepIndex = item + 1 #loop starts with 0, we need 1 to increase the value
+            dictIndexMap["DATA"][rowCounter + stepIndex] = f'PLUGIN: {plugin} PROTOCOL: {protocol} BLOC: {b}'
+        rowCounter += stepIndex
+    return rowCounter
 
 
 for plugin in dictVectors.keys():
+    rowCounter = -1
     for protocol in dictVectors[plugin]:
         indexMapArray = np.vstack([indexMapArray, dictVectors[key][protocol][SUMMARY]])
         indexMapArray = np.vstack([indexMapArray, dictVectors[key][protocol][PARAMETERS]])
         indexMapArray = np.vstack([indexMapArray, dictVectors[key][protocol][IO]])
-        savingDictListVect(dictIndexMap, plugin, protocol)
+        rowCounter = savingDictListVect2(dictIndexMap, plugin, protocol, rowCounter)
 
 
 np.save('indexMap.npy', indexMapArray)
