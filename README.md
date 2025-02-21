@@ -46,7 +46,10 @@ Maybe you need to update the compilers in the conda scipion env:
 ```
 
 ## Preparation
-An Scipion enviroment with Scipion installed  python3 -m scipioninstaller -conda -n scipionProtocolRecomender -noAsk scipionProtocolRecomender
+An Scipion enviroment with Scipion installed:
+```bash
+  python3 -m scipioninstaller -conda -n scipionProtocolRecomender -noAsk scipionProtocolRecomender
+```
 1. In terminal, activate the enviroment
 2. Goes to the path the Scipion is installed
 3. ```bash
