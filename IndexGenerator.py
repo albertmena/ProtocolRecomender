@@ -36,16 +36,20 @@ import numpy as np
 import json
 from datetime import date
 
-#####CONSTANTS
-SUMMARY = 'summary'
-PARAMETERS = 'parameters'
-IO = 'IO'
+
+#####CONFIGURATIONS
 embeddings = HuggingFaceEmbeddings(model_name="sentence-transformers/all-mpnet-base-v2")
 model = "deepseek-r1:14b" #9GB 14.8B parameters
 INSTALL_PLUGINS = False
 SCIPION_ENVIROMENT_NAME = "scipionProtocolRecomender"
 PATH_SCIPION_INSTALLED = '/home/agarcia/develops/scipionProtocolRecomender'
 SITE_PACKAGES = '/home/agarcia/miniconda/envs/scipionProtocolRecomender/lib/python3.8/site-packages/'
+
+
+#####CONSTANTS
+SUMMARY = 'summary'
+PARAMETERS = 'parameters'
+IO = 'IO'
 listOfPlugins = []
 pluginsNoInstalled = []
 dictPlugins = {}

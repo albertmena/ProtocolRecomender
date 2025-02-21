@@ -55,11 +55,18 @@ An Scipion enviroment with Scipion installed:
    - SCIPION_ENVIROMENT_NAME
    - PATH_SCIPION_INSTALLED
    - SITE_PACKAGES
+   - If INSTALL_PLUGINS is True will install all the plugins
 3. Goes to the path the Scipion is installed
-4. ```bash
+4. Activate ollama
+```bash
+    ollama serve
+```
+5. Launch the script with:
+6. 
+```bash
     python3 indexGenerator.py
-    ```
-4. If INSTALL_PLUGINS is True will install all the plugins
+```
+
 
 ## Requirements
 - os
