@@ -51,8 +51,12 @@ An Scipion enviroment with Scipion installed:
   python3 -m scipioninstaller -conda -n scipionProtocolRecomender -noAsk scipionProtocolRecomender
 ```
 1. In terminal, activate the enviroment
-2. Goes to the path the Scipion is installed
-3. ```bash
+2. Edit the parameters to prepare the enviroment:
+   - SCIPION_ENVIROMENT_NAME
+   - PATH_SCIPION_INSTALLED
+   - SITE_PACKAGES
+3. Goes to the path the Scipion is installed
+4. ```bash
     python3 indexGenerator.py
     ```
 4. If INSTALL_PLUGINS is True will install all the plugins
