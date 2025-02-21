@@ -24,6 +24,7 @@ An index map and a JSON file with the map for the index are required. (The `inde
 ### Embedding
   HuggingFaceEmbeddings
   ```bash
+  pip install langchain_huggingface
   curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh
   source $HOME/.cargo/env
   pip install -qU langchain-huggingface
@@ -75,15 +76,9 @@ An Scipion enviroment with Scipion installed:
 - subprocess
 - json
 - numpy
-- ollama
+- ollama (see main section to how to install)
   - model 43GB:
-    ```bash
-    ollama pull deepseek-r1:70b
-    ```
     model = "deepseek-r1:70b"
   - model 404GB
-    ```bash
-    ollama pull deepseek-r1:671b
-    ```
     model = "deepseek-r1:671b"
   
