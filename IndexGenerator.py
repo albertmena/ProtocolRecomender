@@ -54,8 +54,10 @@ listOfPlugins = []
 pluginsNoInstalled = []
 dictPlugins = {}
 
-#### LIST OF PLUGINS
+####SETTINGS
 
+
+#### LIST OF PLUGINS
 urlAllPluginsRegistered = "https://scipion.i2pc.es/getplugins/"
 response = requests.get(urlAllPluginsRegistered)
 

@@ -23,6 +23,11 @@ An index map and a JSON file with the map for the index are required. (The `inde
 
 ### Embedding
   HuggingFaceEmbeddings
+  Pythorch things in the enviroment:
+  ```bash
+    conda install pytorch torchvision torchaudio cudatoolkit=11.3 -c pytorch
+  ```
+
   ```bash
   pip install langchain_huggingface
   curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh
