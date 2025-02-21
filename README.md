@@ -7,13 +7,17 @@ An index map and a JSON file with the map for the index are required. (The `inde
 
 ### DeepSeek
 - [DeepSeek Model](https://ollama.com/library/deepseek-r1:14b)
-- Install `ollama` andpull the model:
+- Install `ollama` in the scipion enviroment (scipionProtocolRecomender) and pull the model:
   ```bash
-  curl -fsSL https://ollama.com/install.sh | sh 
+  conda activate scipionProtocolRecomender
+  conda install condaforge::ollama
+  ollama serve
   ollama pull deepseek-r1:14b
+  ollama list
   ```
   model = "deepseek-r1:14b"
-
+  model = "deepseek-r1:32b"
+  model = "deepseek-r1:671b"
 
 ### Embedding
   HuggingFaceEmbeddings
