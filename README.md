@@ -1,4 +1,4 @@
-Tghis repository handle the protocolRecomender tool. An index map with all the embedding vector with the descriptions of all protocols is created by the indexGenerator.py and the recomendations based on a user question and the index map is provided by the main.py script. 
+This repository handle the protocolRecomender tool. An index map with all the embedding vector with the descriptions of all protocols is created by the indexGenerator.py and the recomendations based on a user question and the index map is provided by the main.py script. 
 
 # Main
 An index map (numpy array) and a JSON file with the map for the index will be generated
