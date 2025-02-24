@@ -1,19 +1,20 @@
-# Main
+Tghis repository handle the protocolRecomender tool. An index map with all the embedding vector with the descriptions of all protocols is created by the indexGenerator.py and the recomendations based on a user question and the index map is provided by the main.py script. 
 
-This script takes the user question, embeds it, searches in the index map, and provides a list of protocols.  
-An index map and a JSON file with the map for the index are required. (The `indexGenerator` script generates the index and the JSON.)
+# Main
+An index map (numpy array) and a JSON file with the map for the index will be generated
 
 ## Requirements
 
 ### DeepSeek
 - [DeepSeek Model](https://ollama.com/library/deepseek-r1:14b)
-- Install `ollama` in the scipion enviroment (scipionProtocolRecomender) and pull the model:
+- Install `ollama` in the system, install ollama in the scipion enviroment (to comunicate python with ollama) and pull the model:
   ```bash
-  conda activate scipionProtocolRecomender
-  conda install condaforge::ollama
+  curl -fsSL https://ollama.com/install.sh | sh
   ollama serve
   ollama pull deepseek-r1:14b
   ollama list
+  conda activate scipionProtocolRecomender
+  pip install ollama
   ```
   models located at .ollama/models/blob
 
@@ -25,7 +26,7 @@ An index map and a JSON file with the map for the index are required. (The `inde
   HuggingFaceEmbeddings
   Pythorch things in the enviroment:
   ```bash
-    conda install pytorch torchvision torchaudio cudatoolkit=11.3 -c pytorch
+    conda install pytorch torchvision torchaudio cudatoolkit -c pytorch
   ```
 
   ```bash
@@ -36,13 +37,10 @@ An index map and a JSON file with the map for the index are required. (The `inde
   ```
   model_name="sentence-transformers/all-mpnet-base-v2"
   
-
 ### Indexing
   faiss-cpu
   numpy
   
-
-
 #  indexGenerator
 
 A Scipion enviroment has to be created. The script can install all the plugins of Scipion, takes all the protocol, embedd all of them and save it in an index map (numpy array) and a json file with the plugin-protocol-index references.
