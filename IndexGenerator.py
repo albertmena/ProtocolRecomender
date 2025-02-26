@@ -35,16 +35,17 @@ from langchain_huggingface import HuggingFaceEmbeddings
 import numpy as np
 import json
 from datetime import date
-
+import time
+import torch
+from torch.nn import DataParallel
 
 #####CONFIGURATIONS
 embeddings = HuggingFaceEmbeddings(model_name="sentence-transformers/all-mpnet-base-v2")
-model = "deepseek-r1:14b" #9GB 14.8B parameters
+model = "deepseek-r1:70b" #9GB 14.8B parameters
 INSTALL_PLUGINS = False
 SCIPION_ENVIROMENT_NAME = "scipionProtocolRecomender"
-PATH_SCIPION_INSTALLED = '/home/agarcia/develops/scipionProtocolRecomender'
-SITE_PACKAGES = '/home/agarcia/miniconda/envs/scipionProtocolRecomender/lib/python3.8/site-packages/'
-
+PATH_SCIPION_INSTALLED = '/home/agarcia/scipionProtocolRecomender'
+SITE_PACKAGES ='/home/agarcia/miniconda/envs/scipionProtocolRecomender/lib/python3.8/site-packages'
 
 #####CONSTANTS
 SUMMARY = 'summary'
@@ -54,7 +55,13 @@ listOfPlugins = []
 pluginsNoInstalled = []
 dictPlugins = {}
 
-####SETTINGS
+####GPUs
+# if torch.cuda.device_count() > 1:
+#     print(f"Usando {torch.cuda.device_count()} GPUs!")
+#     device_ids = list(range(torch.cuda.device_count()))  # Lista de IDs de GPUs disponibles
+# else:
+#     print("Usando 1 GPU.")
+#     device_ids = [0]  # Solo una GPU disponible
 
 
 #### LIST OF PLUGINS
@@ -91,6 +98,7 @@ def runInstallPlugin(plugin, noBin:bool=True):
         print(f'Error: {e}')
         pluginsNoInstalled.append(plugin)
 
+
 def installAllPlugins():
     dictPlugins.pop('scipion-em-xmipp2', None)
     for plugin in dictPlugins.keys():
@@ -118,9 +126,8 @@ for line in protocolsStr.strip().split("\n"):
             protocol_dict[package] = []
         protocol_dict[package].append(protocol)
 
-
+protocol_dict.pop("Scipion", None)
 protocol_dict["chimera"] = protocol_dict.pop("chimerax")
-
 blackList = ['pyworkflowtests', 'xmipp2']
 for p in blackList:
     protocol_dict.pop(p, None)
@@ -175,9 +182,11 @@ def responseDeepSeek(ProtocolStr:str ):
 
 
 def splitPhrasesDescription(stringFull):
-    summaryPhrases = stringFull[:stringFull.find(splittersSummary1)].split('.')
-    parametersPhrases = stringFull[stringFull.find(splittersSummary1):stringFull.find(splittersSummary2)].split('.')
-    IOPhrases = stringFull[stringFull.find(splittersSummary2):].split('.')
+    splitter = '------'
+    stringFull.split(splitter)
+    summaryPhrases = stringFull[0].split('.')
+    parametersPhrases = stringFull[1].split('.')
+    IOPhrases = stringFull[2].split('.')
 
     return summaryPhrases, parametersPhrases, IOPhrases
 
@@ -212,14 +221,18 @@ def embedPhrases(listPhrases):
 
 dictVectors = {}
 for key in dictProtocolFile.keys():
+    print(f'\n\n#############plugin: {key}')
     dictVectors[key] = {}
     for protocol in dictProtocolFile[key]:
+        print(f'\n-----------protocol: {protocol}')
         dictVectors[key][protocol] = {}
         file = dictProtocolFile[key][protocol]
         with open(file, "r", encoding="utf-8") as f:
             scriptTexted = f.read()
             protocolString = classTexted(scriptTexted)
+            time0 = time.time()
             descriptionProtocol = responseDeepSeek(ProtocolStr=protocolString)
+            print(f'Time 1 request:  {(time.time() - time0)/60}m')
             summaryPhrases, parametersPhrases, IOPhrases = splitPhrasesDescription(descriptionProtocol)
             dictVectors[key][protocol][SUMMARY] = embedPhrases(summaryPhrases)
             dictVectors[key][protocol][PARAMETERS] = embedPhrases(parametersPhrases)
