@@ -49,8 +49,12 @@ SITE_PACKAGES ='/home/agarcia/miniconda/envs/scipionProtocolRecomender/lib/pytho
 #####CONSTANTS
 SUMMARY = 'summary'
 PARAMETERS = 'parameters'
-questionForProtocols= 'Describe everything this Scipion protocol does in two blocs divided by a string like this ------. First, provide a summary (200 words) with the main keywords. Then, explain what does all the parameter (defineParameters) (200 words). Omit any tittle in the two blocs: \n'
+splitter = '------'
+fileDS = 'protocolsDescriptions.txt'
 
+questionForProtocols= f'Describe everything this Scipion protocol does in two blocs divided by {splitter} First, provide a summary (200 words) with the main keywords. Then, explain what does all the parameter (defineParameters) (200 words). Omit any tittle in the two blocs: \n'
+questionSummary = f'Can you provide a concise summary (around 200 words) of this Scipion protocol? Please include the main keywords and highlight its purpose, key steps, and applications'
+questionParameters = 'Can you describe this Scipion protocol by providing a concise summary (strictly 200 words) and explain the purpose of all the parameters (defineParameters)? Please ensure the explanation fits within the word limit and covers their roles and impact on the protocol.'
 
 def listPlugins():
     listOfPlugins = []
@@ -150,7 +154,7 @@ def readingProtocols():
     return dictProtocolFile
 
 
-def responseDeepSeek(ProtocolStr:str ):
+def responseDeepSeek(questionForProtocols: str, ProtocolStr:str ):
     response: ChatResponse = chat(
         model=model, messages=[
             {'role': 'user',
@@ -161,14 +165,6 @@ def responseDeepSeek(ProtocolStr:str ):
     resp = response.message.content
     summary = resp[resp.find('</think>') + 8:]
     return summary
-
-def splitPhrasesDescription(stringFull):
-    splitter = '------'
-    stringFull.split(splitter)
-    summaryPhrases = stringFull[0].split('.')
-    parametersPhrases = stringFull[1].split('.')
-
-    return summaryPhrases, parametersPhrases
 
 def protocol2Text(pathProtocol):
     with open(pathProtocol, 'r') as archivo:
@@ -198,8 +194,10 @@ def embedPhrases(listPhrases):
 
 def requestDSFillMap(dictProtocolFile):
     dictVectors = {}
-    fileDS = 'protocolDescriptions.txt'
     for key in dictProtocolFile.keys():
+        with open(fileDS, 'a', encoding="utf-8") as fDS:
+            fDS.write(
+                f'\n\n###############\nPLUGIN: {key} \n')
         print(f'\n\n#############plugin: {key}')
         dictVectors[key] = {}
         for protocol in dictProtocolFile[key]:
@@ -210,25 +208,27 @@ def requestDSFillMap(dictProtocolFile):
                 scriptTexted = f.read()
                 protocolString = classTexted(scriptTexted, protocol)
                 time0 = time.time()
-                descriptionProtocol = responseDeepSeek(ProtocolStr=protocolString)
-                print(f'Time 1 request:  {(time.time() - time0)/60}m')
-                summaryPhrases, parametersPhrases = splitPhrasesDescription(descriptionProtocol)
-                dictVectors[key][protocol][SUMMARY] = embedPhrases(summaryPhrases)
-                dictVectors[key][protocol][PARAMETERS] = embedPhrases(parametersPhrases)
+                summaryPhrases = responseDeepSeek(questionForProtocols=questionSummary, ProtocolStr=protocolString)
+                time1 = time.time()
+                print(f'Time summary request:  {(time1 - time0)/60} min')
+                parametersPhrases = responseDeepSeek(questionForProtocols=questionParameters, ProtocolStr=protocolString)
+                print(f'Time parameters request:  {(time.time() - time1)/60} min')
+                dictVectors[key][protocol][SUMMARY] = embedPhrases(summaryPhrases.split('.'))
+                dictVectors[key][protocol][PARAMETERS] = embedPhrases(parametersPhrases.split('.'))
             with open (fileDS, 'a', encoding="utf-8") as fDS:
-                fDS.write(f'PLUGIN: {key} PROTOCOL: {protocol}\nSummary: {summaryPhrases}\nParameters: {parametersPhrases}\n\n')
+                fDS.write(f'PLUGIN: {key} PROTOCOL: {protocol}\nSUMMARY: {summaryPhrases}\n\nPARAMETERS: {parametersPhrases}\n\n')
     return dictVectors
 
 def savingDictListVect2(dictIndexMap, plugin, protocol, rowCounter):
     for b in [SUMMARY, PARAMETERS]:
-        for item in list(range(dictVectors[plugin][protocol][b])):
+        for item in list(range(len(dictVectors[plugin][protocol][b]))):
             stepIndex = item + 1 #loop starts with 0, we need 1 to increase the value
             dictIndexMap["DATA"][rowCounter + stepIndex] = f'PLUGIN: {plugin} PROTOCOL: {protocol} BLOC: {b}'
         rowCounter += stepIndex
     return rowCounter
 
 def indexMap(dictVectors):
-    indexMapArray = np.array()
+    indexMapArray = np.empty((0, 768))
     dictIndexMap = {'header':{"description": "This JSON file contains sentence embeddings.",
                               "index_info": "Each value represent the index in the indexMap.npy that represent the embeddig of each phrase.",
                               "usage": "These embeddings can be easy search with the plugin, protocol and bloc (summary, parameters).",
@@ -251,13 +251,13 @@ def indexMap(dictVectors):
         json.dump(dictIndexMap, f, indent=4, ensure_ascii=False)
 
 
-
 if __name__ == "__main__":
-    listOfPlugins, dictPlugins = listPlugins()
-    listOfPlugins = ['scipion-em-motioncorr', 'scipion-em-aretomo']
-    dictPlugins = {dictPlugins['scipion-em-motioncorr'], dictPlugins['scipion-em-aretomo']}
-    if INSTALL_PLUGINS: installAllPlugins(listOfPlugins, dictPlugins)
+    # listOfPlugins, dictPlugins = listPlugins()
+    # listOfPlugins = ['scipion-em-motioncorr', 'scipion-em-aretomo']
+    # dictPlugins = {dictPlugins['scipion-em-motioncorr'], dictPlugins['scipion-em-aretomo']}
+    # if INSTALL_PLUGINS: installAllPlugins(listOfPlugins, dictPlugins)
     dictProtocolFile = readingProtocols()
-    dictProtocolFile = {dictProtocolFile['motioncorr'], dictProtocolFile['aretomo']} #JUST TO DEBUG
+    #dictProtocolFile = {'motioncorr': dictProtocolFile['motioncorr'], 'aretomo': dictProtocolFile['aretomo']} #JUST TO DEBUG
+    dictProtocolFile = {'aretomo': dictProtocolFile['aretomo']} #JUST TO DEBUG
     dictVectors = requestDSFillMap(dictProtocolFile)
     indexMap(dictVectors)
