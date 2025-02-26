@@ -36,12 +36,11 @@ import numpy as np
 import json
 from datetime import date
 import time
-import torch
-from torch.nn import DataParallel
+
 
 #####CONFIGURATIONS
 embeddings = HuggingFaceEmbeddings(model_name="sentence-transformers/all-mpnet-base-v2")
-model = "deepseek-r1:70b" #9GB 14.8B parameters
+model = "deepseek-r1:70b" #40GC 70.6B parameters
 INSTALL_PLUGINS = False
 SCIPION_ENVIROMENT_NAME = "scipionProtocolRecomender"
 PATH_SCIPION_INSTALLED = '/home/agarcia/scipionProtocolRecomender'
@@ -50,40 +49,32 @@ SITE_PACKAGES ='/home/agarcia/miniconda/envs/scipionProtocolRecomender/lib/pytho
 #####CONSTANTS
 SUMMARY = 'summary'
 PARAMETERS = 'parameters'
-IO = 'IO'
-listOfPlugins = []
-pluginsNoInstalled = []
-dictPlugins = {}
-
-####GPUs
-# if torch.cuda.device_count() > 1:
-#     print(f"Usando {torch.cuda.device_count()} GPUs!")
-#     device_ids = list(range(torch.cuda.device_count()))  # Lista de IDs de GPUs disponibles
-# else:
-#     print("Usando 1 GPU.")
-#     device_ids = [0]  # Solo una GPU disponible
+questionForProtocols= 'Describe everything this Scipion protocol does in two blocs divided by a string like this ------. First, provide a summary (200 words) with the main keywords. Then, explain what does all the parameter (defineParameters) (200 words). Omit any tittle in the two blocs: \n'
 
 
-#### LIST OF PLUGINS
-urlAllPluginsRegistered = "https://scipion.i2pc.es/getplugins/"
-response = requests.get(urlAllPluginsRegistered)
+def listPlugins():
+    listOfPlugins = []
+    dictPlugins = {}
 
-if response.status_code == 200:
-    data = response.json()
-    for key, value in data.items():
-        listOfPlugins.append(value["pipName"])
-        dictPlugins[key] = value["name"]
-else:
-    print(f"Error {response.status_code}: No se pudo obtener el JSON")
+    #### LIST OF PLUGINS
+    urlAllPluginsRegistered = "https://scipion.i2pc.es/getplugins/"
+    response = requests.get(urlAllPluginsRegistered)
 
-# dictPlugins['pkpd'] = 'pkpd'
-# dictPlugins['chem'] = 'pwchem'
-# listOfPlugins.append('scipion-pkpd')
-# listOfPlugins.append('scipion-chem')
+    if response.status_code == 200:
+        data = response.json()
+        for key, value in data.items():
+            listOfPlugins.append(value["pipName"])
+            dictPlugins[key] = value["name"]
+    else:
+        print(f"Error {response.status_code}: No se pudo obtener el JSON")
 
-#### INSTALL PLUGINS WITHOUT BINARIES
+    # dictPlugins['pkpd'] = 'pkpd'
+    # dictPlugins['chem'] = 'pwchem'
+    # listOfPlugins.append('scipion-pkpd')
+    # listOfPlugins.append('scipion-chem')
+    return listOfPlugins, dictPlugins
 
-def runInstallPlugin(plugin, noBin:bool=True):
+def runInstallPlugin(plugin, pluginsNoInstalled, noBin:bool=True):
     if noBin: flagBin = '--noBin'
     else: flagBin=''
     activate_env = f"./scipion3 installp -p  {plugin} {flagBin}"
@@ -98,75 +89,66 @@ def runInstallPlugin(plugin, noBin:bool=True):
         print(f'Error: {e}')
         pluginsNoInstalled.append(plugin)
 
-
-def installAllPlugins():
+def installAllPlugins(listOfPlugins, dictPlugins):
+    pluginsNoInstalled = []
     dictPlugins.pop('scipion-em-xmipp2', None)
     for plugin in dictPlugins.keys():
-        runInstallPlugin(plugin)
+        runInstallPlugin(plugin, pluginsNoInstalled)
         subprocess.run(f'./scipion3 pip list', shell=True, check=True, cwd=PATH_SCIPION_INSTALLED)
 
     pluginsInstalled = [p for p in listOfPlugins if p not in pluginsNoInstalled]
     print(f'Plugins installed ({len(pluginsInstalled)}): {pluginsInstalled}\nPlugins no installed ({len(pluginsNoInstalled)}): {pluginsNoInstalled}')
 
-if INSTALL_PLUGINS: installAllPlugins()
+def readingProtocols():
+    #### LIST PROTOCOLS
+    protocol_dict = {}
+    result = subprocess.run(f'./scipion3 protocols', shell=True, check=True,cwd=PATH_SCIPION_INSTALLED, capture_output=True, text=True)
+    protocolsStr = result.stdout
+    protocolsStr = protocolsStr[protocolsStr.find('LABEL') + 5:]
 
-#### LIST PROTOCOLS
+    for line in protocolsStr.strip().split("\n"):
+        parts = line.split()
+        if len(parts) >= 2:
+            package = parts[0]
+            protocol = parts[1]
+            if package not in protocol_dict:
+                protocol_dict[package] = []
+            protocol_dict[package].append(protocol)
 
-protocol_dict = {}
-result = subprocess.run(f'./scipion3 protocols', shell=True, check=True,cwd=PATH_SCIPION_INSTALLED, capture_output=True, text=True)
-protocolsStr = result.stdout
-protocolsStr = protocolsStr[protocolsStr.find('LABEL') + 5:]
+    protocol_dict.pop("Scipion", None)
+    protocol_dict["chimera"] = protocol_dict.pop("chimerax")
+    blackList = ['pyworkflowtests', 'xmipp2']
+    for p in blackList:
+        protocol_dict.pop(p, None)
 
-for line in protocolsStr.strip().split("\n"):
-    parts = line.split()
-    if len(parts) >= 2:
-        package = parts[0]
-        protocol = parts[1]
-        if package not in protocol_dict:
-            protocol_dict[package] = []
-        protocol_dict[package].append(protocol)
-
-protocol_dict.pop("Scipion", None)
-protocol_dict["chimera"] = protocol_dict.pop("chimerax")
-blackList = ['pyworkflowtests', 'xmipp2']
-for p in blackList:
-    protocol_dict.pop(p, None)
-
-dictProtocolFile = {}
-dictProtocolFile = {}
-from pathlib import Path
-for plugin in protocol_dict.keys():
-    #print(f'PLUGIN: {plugin}')
-    dictProtocolFile[plugin] = {}
-    protocolFiles = Path(os.path.join(SITE_PACKAGES, plugin, 'protocols'))
-    for file in protocolFiles.iterdir():
-        if file.is_file() and file.suffix == ".py" and file.name != "__init__.py":
-            with open(file, "r", encoding="utf-8") as f:
-                scriptTexted = f.read()
-                tree = ast.parse(scriptTexted)
-                for node in ast.walk(tree):
-                    if isinstance(node, ast.ClassDef):
-                        if node.name in protocol_dict[plugin]:
-                            #print(f"Clase encontrada: {node.name}")
-                            dictProtocolFile[plugin].update({node.name: file})
+    dictProtocolFile = {}
+    from pathlib import Path
+    for plugin in protocol_dict.keys():
+        #print(f'PLUGIN: {plugin}')
+        dictProtocolFile[plugin] = {}
+        protocolFiles = Path(os.path.join(SITE_PACKAGES, plugin, 'protocols'))
+        for file in protocolFiles.iterdir():
+            if file.is_file() and file.suffix == ".py" and file.name != "__init__.py":
+                with open(file, "r", encoding="utf-8") as f:
+                    scriptTexted = f.read()
+                    tree = ast.parse(scriptTexted)
+                    for node in ast.walk(tree):
+                        if isinstance(node, ast.ClassDef):
+                            if node.name in protocol_dict[plugin]:
+                                #print(f"Clase encontrada: {node.name}")
+                                dictProtocolFile[plugin].update({node.name: file})
 
 
-print(f'Registred: {len(dictProtocolFile)} plugins')
-totalProtocols = 0
-for key in dictProtocolFile.keys():
-    numProts = len(dictProtocolFile[key])
-    totalProtocols+= numProts
-    print(f'{key}: {len(dictProtocolFile[key])} protocols')
+    print(f'Registred: {len(dictProtocolFile)} plugins')
+    totalProtocols = 0
+    for key in dictProtocolFile.keys():
+        numProts = len(dictProtocolFile[key])
+        totalProtocols+= numProts
+        print(f'{key}: {len(dictProtocolFile[key])} protocols')
 
-print(f'Total protocols registred: {totalProtocols}')
+    print(f'Total protocols registred: {totalProtocols}')
+    return dictProtocolFile
 
-
-
-### ASK DEEPSEEK DOR DESCRIPTION
-
-questionForProtocols= 'Describe everything this Scipion protocol does in three blocs divided each one by a string like this ------. First, provide a summary (200 words) with the main keywords. Then, explain what does all the parameter (defineParameters) (200 words). Finally, describe the inputs and outputs (200 words). Omit any tittle in the three blocs: \n'
-splittersSummary1 = 'defineParameters'
-splittersSummary2 = 'Inputs and Outputs'
 
 def responseDeepSeek(ProtocolStr:str ):
     response: ChatResponse = chat(
@@ -180,28 +162,24 @@ def responseDeepSeek(ProtocolStr:str ):
     summary = resp[resp.find('</think>') + 8:]
     return summary
 
-
 def splitPhrasesDescription(stringFull):
     splitter = '------'
     stringFull.split(splitter)
     summaryPhrases = stringFull[0].split('.')
     parametersPhrases = stringFull[1].split('.')
-    IOPhrases = stringFull[2].split('.')
 
-    return summaryPhrases, parametersPhrases, IOPhrases
-
+    return summaryPhrases, parametersPhrases
 
 def protocol2Text(pathProtocol):
     with open(pathProtocol, 'r') as archivo:
         return archivo.read()
 
-
-def classTexted(scriptTexted):
+def classTexted(scriptTexted, protocol):
     tree = ast.parse(scriptTexted)
     for node in ast.walk(tree):
         if isinstance(node, ast.ClassDef):
             if node.name in protocol:
-                start_line = node.lineno - 1  # ast usa 1-based indexing
+                start_line = node.lineno - 1  # ast use 1-based indexing
                 end_line = node.end_lineno if hasattr(node,"end_lineno") else None
                 if end_line is None:
                     for child_node in ast.walk(node):
@@ -211,7 +189,6 @@ def classTexted(scriptTexted):
                 return "\n".join(
                     scriptTexted.splitlines()[start_line:end_line])
 
-
 def embedPhrases(listPhrases):
     listVectors = []
     for p in listPhrases:
@@ -219,68 +196,68 @@ def embedPhrases(listPhrases):
     return listVectors
 
 
-dictVectors = {}
-for key in dictProtocolFile.keys():
-    print(f'\n\n#############plugin: {key}')
-    dictVectors[key] = {}
-    for protocol in dictProtocolFile[key]:
-        print(f'\n-----------protocol: {protocol}')
-        dictVectors[key][protocol] = {}
-        file = dictProtocolFile[key][protocol]
-        with open(file, "r", encoding="utf-8") as f:
-            scriptTexted = f.read()
-            protocolString = classTexted(scriptTexted)
-            time0 = time.time()
-            descriptionProtocol = responseDeepSeek(ProtocolStr=protocolString)
-            print(f'Time 1 request:  {(time.time() - time0)/60}m')
-            summaryPhrases, parametersPhrases, IOPhrases = splitPhrasesDescription(descriptionProtocol)
-            dictVectors[key][protocol][SUMMARY] = embedPhrases(summaryPhrases)
-            dictVectors[key][protocol][PARAMETERS] = embedPhrases(parametersPhrases)
-            dictVectors[key][protocol][IO] = embedPhrases(IOPhrases)
-
-
-
-#### Split description
-
-
-####Split phrases
-
-
-##### EMmbdding phrases
-
-
-##### Saving vectors
-indexMapArray = np.array()
-dictIndexMap = {'header':{"description": "This JSON file contains sentence embeddings.",
-                          "index_info": "Each value represent the index in the indexMap.npy that represent the embeddig of each phrase.",
-                          "usage": "These embeddings can be easy search with the plugin, protocol and bloc (summary, parameters, IO).",
-                          "Date": f'{date.today()}\n',
-                          "Plugins collected": f'{dictProtocolFile.keys()}'
-                },
-                "DATA": None,
-                }
+def requestDSFillMap(dictProtocolFile):
+    dictVectors = {}
+    fileDS = 'protocolDescriptions.txt'
+    for key in dictProtocolFile.keys():
+        print(f'\n\n#############plugin: {key}')
+        dictVectors[key] = {}
+        for protocol in dictProtocolFile[key]:
+            print(f'\n-----------protocol: {protocol}')
+            dictVectors[key][protocol] = {}
+            file = dictProtocolFile[key][protocol]
+            with open(file, "r", encoding="utf-8") as f:
+                scriptTexted = f.read()
+                protocolString = classTexted(scriptTexted, protocol)
+                time0 = time.time()
+                descriptionProtocol = responseDeepSeek(ProtocolStr=protocolString)
+                print(f'Time 1 request:  {(time.time() - time0)/60}m')
+                summaryPhrases, parametersPhrases = splitPhrasesDescription(descriptionProtocol)
+                dictVectors[key][protocol][SUMMARY] = embedPhrases(summaryPhrases)
+                dictVectors[key][protocol][PARAMETERS] = embedPhrases(parametersPhrases)
+            with open (fileDS, 'a', encoding="utf-8") as fDS:
+                fDS.write(f'PLUGIN: {key} PROTOCOL: {protocol}\nSummary: {summaryPhrases}\nParameters: {parametersPhrases}\n\n')
+    return dictVectors
 
 def savingDictListVect2(dictIndexMap, plugin, protocol, rowCounter):
-    for b in [SUMMARY, PARAMETERS, IO]:
-        for item in list(range(dictVectors[key][protocol][b])):
+    for b in [SUMMARY, PARAMETERS]:
+        for item in list(range(dictVectors[plugin][protocol][b])):
             stepIndex = item + 1 #loop starts with 0, we need 1 to increase the value
             dictIndexMap["DATA"][rowCounter + stepIndex] = f'PLUGIN: {plugin} PROTOCOL: {protocol} BLOC: {b}'
         rowCounter += stepIndex
     return rowCounter
 
+def indexMap(dictVectors):
+    indexMapArray = np.array()
+    dictIndexMap = {'header':{"description": "This JSON file contains sentence embeddings.",
+                              "index_info": "Each value represent the index in the indexMap.npy that represent the embeddig of each phrase.",
+                              "usage": "These embeddings can be easy search with the plugin, protocol and bloc (summary, parameters).",
+                              "Date": f'{date.today()}\n',
+                              "Plugins collected": f'{dictProtocolFile.keys()}'
+                    },
+                    "DATA": None,
+                    }
 
-for plugin in dictVectors.keys():
-    rowCounter = -1
-    for protocol in dictVectors[plugin]:
-        indexMapArray = np.vstack([indexMapArray, dictVectors[key][protocol][SUMMARY]])
-        indexMapArray = np.vstack([indexMapArray, dictVectors[key][protocol][PARAMETERS]])
-        indexMapArray = np.vstack([indexMapArray, dictVectors[key][protocol][IO]])
-        rowCounter = savingDictListVect2(dictIndexMap, plugin, protocol, rowCounter)
+    for plugin in dictVectors.keys():
+        rowCounter = -1
+        for protocol in dictVectors[plugin]:
+            indexMapArray = np.vstack([indexMapArray, dictVectors[plugin][protocol][SUMMARY]])
+            indexMapArray = np.vstack([indexMapArray, dictVectors[plugin][protocol][PARAMETERS]])
+            rowCounter = savingDictListVect2(dictIndexMap, plugin, protocol, rowCounter)
 
 
-np.save('indexMap.npy', indexMapArray)
-with open("indexMap.json", "w", encoding="utf-8") as f:
-    json.dump(dictIndexMap, f, indent=4, ensure_ascii=False)
+    np.save('indexMap.npy', indexMapArray)
+    with open("indexMap.json", "w", encoding="utf-8") as f:
+        json.dump(dictIndexMap, f, indent=4, ensure_ascii=False)
 
 
 
+if __name__ == "__main__":
+    listOfPlugins, dictPlugins = listPlugins()
+    listOfPlugins = ['scipion-em-motioncorr', 'scipion-em-aretomo']
+    dictPlugins = {dictPlugins['scipion-em-motioncorr'], dictPlugins['scipion-em-aretomo']}
+    if INSTALL_PLUGINS: installAllPlugins(listOfPlugins, dictPlugins)
+    dictProtocolFile = readingProtocols()
+    dictProtocolFile = {dictProtocolFile['motioncorr'], dictProtocolFile['aretomo']} #JUST TO DEBUG
+    dictVectors = requestDSFillMap(dictProtocolFile)
+    indexMap(dictVectors)
