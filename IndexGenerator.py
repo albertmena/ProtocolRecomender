@@ -223,7 +223,7 @@ def savingDictListVect2(dictIndexMap, plugin, protocol, rowCounter):
     for b in [SUMMARY, PARAMETERS]:
         for item in list(range(len(dictVectors[plugin][protocol][b]))):
             stepIndex = item + 1 #loop starts with 0, we need 1 to increase the value
-            dictIndexMap["DATA"][rowCounter + stepIndex] = f'PLUGIN: {plugin} PROTOCOL: {protocol} BLOC: {b}'
+            dictIndexMap["DATA"][rowCounter + stepIndex] = {'PLUGIN':plugin, 'PROTOCOL':protocol, 'BLOC': b}
         rowCounter += stepIndex
     return rowCounter
 
@@ -232,10 +232,9 @@ def indexMap(dictVectors):
     dictIndexMap = {'header':{"description": "This JSON file contains sentence embeddings.",
                               "index_info": "Each value represent the index in the indexMap.npy that represent the embeddig of each phrase.",
                               "usage": "These embeddings can be easy search with the plugin, protocol and bloc (summary, parameters).",
-                              "Date": f'{date.today()}\n',
-                              "Plugins collected": f'{dictProtocolFile.keys()}'
-                    },
-                    "DATA": None,
+                              "Date": f'{date.today()}',
+                              "Plugins collected": ', '.join(list(dictProtocolFile.keys()))},
+                    "DATA": {},
                     }
 
     for plugin in dictVectors.keys():
@@ -257,7 +256,7 @@ if __name__ == "__main__":
     # dictPlugins = {dictPlugins['scipion-em-motioncorr'], dictPlugins['scipion-em-aretomo']}
     # if INSTALL_PLUGINS: installAllPlugins(listOfPlugins, dictPlugins)
     dictProtocolFile = readingProtocols()
-    #dictProtocolFile = {'motioncorr': dictProtocolFile['motioncorr'], 'aretomo': dictProtocolFile['aretomo']} #JUST TO DEBUG
-    dictProtocolFile = {'aretomo': dictProtocolFile['aretomo']} #JUST TO DEBUG
+    dictProtocolFile = {'motioncorr': dictProtocolFile['motioncorr']} #JUST TO DEBUG
+    #dictProtocolFile = {'aretomo': dictProtocolFile['aretomo']} #JUST TO DEBUG
     dictVectors = requestDSFillMap(dictProtocolFile)
     indexMap(dictVectors)
