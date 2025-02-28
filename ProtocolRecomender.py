@@ -63,6 +63,7 @@ def addVectorsToIndexFaiss():
         vectorMap = vectorMap.astype(np.float32)
 
     dictIndex.add(vectorMap)
+    faiss.write_index(dictIndex, 'index.faiss') #TODO do it in the IndexGeneretor script
 
 if __name__ == "__main__":
     userQuestion = parseUserQuestion()
