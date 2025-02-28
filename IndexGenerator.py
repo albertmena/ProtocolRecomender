@@ -40,6 +40,7 @@ import time
 
 #####CONFIGURATIONS
 embeddings = HuggingFaceEmbeddings(model_name="sentence-transformers/all-mpnet-base-v2")
+#'sentence-transformers/gtr-t5-large'
 model = "deepseek-r1:70b" #40GC 70.6B parameters
 INSTALL_PLUGINS = False
 SCIPION_ENVIROMENT_NAME = "scipionProtocolRecomender"
@@ -51,10 +52,12 @@ SUMMARY = 'summary'
 PARAMETERS = 'parameters'
 splitter = '------'
 fileDS = 'protocolsDescriptions.txt'
+NPY_FILE= 'indexMap.npy'
 
-questionForProtocols= f'Describe everything this Scipion protocol does in two blocs divided by {splitter} First, provide a summary (200 words) with the main keywords. Then, explain what does all the parameter (defineParameters) (200 words). Omit any tittle in the two blocs: \n'
-questionSummary = f'Can you provide a concise summary (around 200 words) of this Scipion protocol? Please include the main keywords and highlight its purpose, key steps, and applications'
-questionParameters = 'Can you describe this Scipion protocol by providing a concise summary (strictly 200 words) and explain the purpose of all the parameters (defineParameters)? Please ensure the explanation fits within the word limit and covers their roles and impact on the protocol.'
+#questionForProtocols= f'Describe everything this Scipion protocol does in two blocs divided by {splitter} First, provide a summary (200 words) with the main keywords. Then, explain what does all the parameter (defineParameters) (200 words). Omit any tittle in the two blocs: \n'
+questionSummary = f'Can you provide a concise summary of around 200 words of this Scipion protocol? Please include the main keywords and highlight its purpose, key steps, and applications'
+#questionParameters = 'Can you provide a concise summary of around 200 words of the parameters of this Scipion protocol?'
+questionParameters = "Please provide a concise description, of the parameters defined in the defineParameters section of this Scipion protocol.Report just around 10 words for each parameter. Focus solely on listing and briefly explaining each parameter without making corrections or adding extra commentary."
 
 def listPlugins():
     listOfPlugins = []
@@ -223,7 +226,7 @@ def savingDictListVect2(dictIndexMap, plugin, protocol, rowCounter):
     for b in [SUMMARY, PARAMETERS]:
         for item in list(range(len(dictVectors[plugin][protocol][b]))):
             stepIndex = item + 1 #loop starts with 0, we need 1 to increase the value
-            dictIndexMap["DATA"][rowCounter + stepIndex] = {'PLUGIN':plugin, 'PROTOCOL':protocol, 'BLOC': b}
+            dictIndexMap["VECTORS"][rowCounter + stepIndex] = {'PLUGIN':plugin, 'PROTOCOL':protocol, 'BLOC': b}
         rowCounter += stepIndex
     return rowCounter
 
@@ -231,10 +234,10 @@ def indexMap(dictVectors):
     indexMapArray = np.empty((0, 768))
     dictIndexMap = {'header':{"description": "This JSON file contains sentence embeddings.",
                               "index_info": "Each value represent the index in the indexMap.npy that represent the embeddig of each phrase.",
-                              "usage": "These embeddings can be easy search with the plugin, protocol and bloc (summary, parameters).",
+                              "usage": "These embeddings can be easy search with the plugin,  protocol  and blocs: summary, parameters.",
                               "Date": f'{date.today()}',
                               "Plugins collected": ', '.join(list(dictProtocolFile.keys()))},
-                    "DATA": {},
+                    "VECTORS": {},
                     }
 
     for plugin in dictVectors.keys():
@@ -245,7 +248,7 @@ def indexMap(dictVectors):
             rowCounter = savingDictListVect2(dictIndexMap, plugin, protocol, rowCounter)
 
 
-    np.save('indexMap.npy', indexMapArray)
+    np.save(NPY_FILE, indexMapArray)
     with open("indexMap.json", "w", encoding="utf-8") as f:
         json.dump(dictIndexMap, f, indent=4, ensure_ascii=False)
 
@@ -256,7 +259,6 @@ if __name__ == "__main__":
     # dictPlugins = {dictPlugins['scipion-em-motioncorr'], dictPlugins['scipion-em-aretomo']}
     # if INSTALL_PLUGINS: installAllPlugins(listOfPlugins, dictPlugins)
     dictProtocolFile = readingProtocols()
-    dictProtocolFile = {'motioncorr': dictProtocolFile['motioncorr']} #JUST TO DEBUG
-    #dictProtocolFile = {'aretomo': dictProtocolFile['aretomo']} #JUST TO DEBUG
+    #dictProtocolFile = {'motioncorr': dictProtocolFile['motioncorr'], 'aretomo': dictProtocolFile['aretomo']} #JUST TO DEBUG
     dictVectors = requestDSFillMap(dictProtocolFile)
     indexMap(dictVectors)

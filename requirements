@@ -1,0 +1,10 @@
+faiss-cpu
+requests
+subprocess
+ollama
+ast
+langchain_huggingface
+numpy
+json
+datetime
+time
