@@ -36,6 +36,7 @@ import numpy as np
 import json
 from datetime import date
 import time
+import faiss #faiss-cpu
 
 
 #####CONFIGURATIONS
@@ -53,6 +54,9 @@ PARAMETERS = 'parameters'
 splitter = '------'
 fileDS = 'protocolsDescriptions.txt'
 NPY_FILE= 'indexMap.npy'
+FAISS_FILE= 'indexMap.faiss'
+JSON_MAP = 'indexMap.json'
+INDEX_VECTOR_DIMENSION = 768
 
 #questionForProtocols= f'Describe everything this Scipion protocol does in two blocs divided by {splitter} First, provide a summary (200 words) with the main keywords. Then, explain what does all the parameter (defineParameters) (200 words). Omit any tittle in the two blocs: \n'
 questionSummary = f'Can you provide a concise summary of around 200 words of this Scipion protocol? Please include the main keywords and highlight its purpose, key steps, and applications'
@@ -145,16 +149,16 @@ def readingProtocols():
                                 #print(f"Clase encontrada: {node.name}")
                                 dictProtocolFile[plugin].update({node.name: file})
 
+	protocol_dict.pop("Scipion", None)
+	print(f'Registred: {len(dictProtocolFile)} plugins')
+	totalProtocols = 0
+	for key in dictProtocolFile.keys():
+		numProts = len(dictProtocolFile[key])
+		totalProtocols+= numProts
+		print(f'{key}: {len(dictProtocolFile[key])} protocols')
 
-    print(f'Registred: {len(dictProtocolFile)} plugins')
-    totalProtocols = 0
-    for key in dictProtocolFile.keys():
-        numProts = len(dictProtocolFile[key])
-        totalProtocols+= numProts
-        print(f'{key}: {len(dictProtocolFile[key])} protocols')
-
-    print(f'Total protocols registred: {totalProtocols}')
-    return dictProtocolFile
+	print(f'Total protocols registred: {totalProtocols}')
+	return dictProtocolFile
 
 
 def responseDeepSeek(questionForProtocols: str, ProtocolStr:str ):
@@ -187,7 +191,7 @@ def classTexted(scriptTexted, protocol):
                             end_line = child_node.lineno
                 return "\n".join(
                     scriptTexted.splitlines()[start_line:end_line])
-
+#
 def embedPhrases(listPhrases):
     listVectors = []
     for p in listPhrases:
@@ -253,16 +257,29 @@ def indexMap(dictVectors):
 
 
     np.save(NPY_FILE, indexMapArray)
-    with open("indexMap.json", "w", encoding="utf-8") as f:
+    with open(JSON_MAP, "w", encoding="utf-8") as f:
         json.dump(dictIndexMap, f, indent=4, ensure_ascii=False)
+
+def writtingIndexFaissFile():
+	dictIndex = faiss.IndexFlatIP(INDEX_VECTOR_DIMENSION)
+	vectorMap = np.load(NPY_FILE)
+
+	if vectorMap.dtype != np.float32:
+		vectorMap = vectorMap.astype(np.float32)
+
+	assert vectorMap.shape[1] == INDEX_VECTOR_DIMENSION, "Dimension mismatch!"
+
+	dictIndex.add(vectorMap)
+	faiss.write_index(dictIndex, FAISS_FILE)
 
 
 if __name__ == "__main__":
-    # listOfPlugins, dictPlugins = listPlugins()
-    # listOfPlugins = ['scipion-em-motioncorr', 'scipion-em-aretomo']
-    # dictPlugins = {dictPlugins['scipion-em-motioncorr'], dictPlugins['scipion-em-aretomo']}
-    # if INSTALL_PLUGINS: installAllPlugins(listOfPlugins, dictPlugins)
-    dictProtocolFile = readingProtocols()
-    #dictProtocolFile = {'motioncorr': dictProtocolFile['motioncorr'], 'aretomo': dictProtocolFile['aretomo']} #JUST TO DEBUG
-    dictVectors = requestDSFillMap(dictProtocolFile)
-    indexMap(dictVectors)
+	# listOfPlugins, dictPlugins = listPlugins()
+	# listOfPlugins = ['scipion-em-motioncorr', 'scipion-em-aretomo']
+	# dictPlugins = {dictPlugins['scipion-em-motioncorr'], dictPlugins['scipion-em-aretomo']}
+	# if INSTALL_PLUGINS: installAllPlugins(listOfPlugins, dictPlugins)
+	dictProtocolFile = readingProtocols()
+	#dictProtocolFile = {'motioncorr': dictProtocolFile['motioncorr'], 'aretomo': dictProtocolFile['aretomo']} #JUST TO DEBUG
+	dictVectors = requestDSFillMap(dictProtocolFile)
+	indexMap(dictVectors)
+	writtingIndexFaissFile()
