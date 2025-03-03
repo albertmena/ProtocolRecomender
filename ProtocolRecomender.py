@@ -93,17 +93,16 @@ def findProtocolsRecomended(dictCorrIndex):
 
 
 
-def sortProtocolsRecomended(dictCorrIndex, dictProtocolcorr):
+def sortProtocolsRecomended(dictProtocolcorr):
+	dictPluginProtocolCor = {}
+	return dict(sorted(dictProtocolcorr.items(), key=lambda item: item[1]))
 
-	dictProtocolcorrSorted = dict(sorted(dictProtocolcorr.items(), key=lambda item: item[1]))
-
-	for protocol in dictProtocolcorrSorted.keys():
-		listProtocol
 	# plugin = dictMap['VECTORS'][str(dictCorrIndex[i])]['PLUGIN']
 	# protocol = dictMap['VECTORS'][str(dictCorrIndex[i])]['PROTOCOL']
 	# bloc = dictMap['VECTORS'][str(dictCorrIndex[i])]['BLOC']
 
-
+def printRecomendations(dictProtocolcorrSorted, dictCorrIndex):
+	print(f'Protocol recomended: {next(iter(dictProtocolcorrSorted.items()))}')
 
 if __name__ == "__main__":
 	userQuestion = parseUserQuestion()
@@ -111,6 +110,6 @@ if __name__ == "__main__":
 	correlation, index = searchOnIndexFaiss(userQuestionVector=userQuestionVector)
 	dictCorrIndex = evaluateCorrelations(correlation, index)
 	dictProtocolcorr = findProtocolsRecomended(dictCorrIndex)
-	sortProtocolsRecomended()
-	collectReportAboutProtocol()
-	printRecomendations()
+	dictProtocolcorrSorted = sortProtocolsRecomended(dictProtocolcorr)
+	#collectReportAboutProtocol(dictProtocolcorrSorted)
+	printRecomendations(dictProtocolcorrSorted, dictCorrInde)
