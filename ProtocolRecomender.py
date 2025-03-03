@@ -101,8 +101,11 @@ def sortProtocolsRecomended(dictProtocolcorr):
 	# protocol = dictMap['VECTORS'][str(dictCorrIndex[i])]['PROTOCOL']
 	# bloc = dictMap['VECTORS'][str(dictCorrIndex[i])]['BLOC']
 
-def printRecomendations(dictProtocolcorrSorted, dictCorrIndex):
+def printRecomendations(dictProtocolcorrSorted):
 	print(f'Protocol recomended: {next(iter(dictProtocolcorrSorted.items()))}')
+
+
+
 
 if __name__ == "__main__":
 	userQuestion = parseUserQuestion()
@@ -112,4 +115,4 @@ if __name__ == "__main__":
 	dictProtocolcorr = findProtocolsRecomended(dictCorrIndex)
 	dictProtocolcorrSorted = sortProtocolsRecomended(dictProtocolcorr)
 	#collectReportAboutProtocol(dictProtocolcorrSorted)
-	printRecomendations(dictProtocolcorrSorted, dictCorrInde)
+	printRecomendations(dictProtocolcorrSorted)
