@@ -197,7 +197,11 @@ def embedPhrases(listPhrases):
 
 def requestDSFillMap(dictProtocolFile):
     dictVectors = {}
+    num_PLugins = len(dictProtocolFile.keys())
+    index = 0
     for key in dictProtocolFile.keys():
+        index+=1
+        print(f'Plugin {index}/{num_PLugins}')
         with open(fileDS, 'a', encoding="utf-8") as fDS:
             fDS.write(
                 f'\n\n###############\nPLUGIN: {key} \n')
