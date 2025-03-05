@@ -29,7 +29,9 @@ from langchain_huggingface import HuggingFaceEmbeddings
 import faiss #faiss-cpu
 import numpy as np
 import json
+import time
 
+start_time = time.time()
 ######CONSTANTS
 SIZE_USER_QUESTION = 100
 INDEX_VECTOR_DIMENSION = 768
@@ -41,8 +43,9 @@ MINIMUM_CORRELATION_REQUIRED = 0.3
 #####CONFIGURATIONS
 embeddings = HuggingFaceEmbeddings(model_name="sentence-transformers/all-mpnet-base-v2")
 
+constantEND_time = time.time()
 def parseUserQuestion():
-    parser = argparse.ArgumentParser(description='Ejemplo arg')
+    parser = argparse.ArgumentParser(description='Example arg')
     parser.add_argument('userQuestion', type=str, help='question to recomend a protocol')
 
     args = parser.parse_args()
@@ -95,15 +98,30 @@ def printRecomendations(dictProtocolcorr):
 
 
 
-
 if __name__ == "__main__":
 	userQuestion = parseUserQuestion()
+	parseUserQuestion_time = time.time()
 	userQuestionVector = embedUserQuestion(userQuestion)
+	embedUserQuestion_time = time.time()
 	correlation, index = searchOnIndexFaiss(userQuestionVector=userQuestionVector)
+	searchOnIndexFaiss_time = time.time()
 	dictCorrIndex = evaluateCorrelations(correlation, index)
+	evaluateCorrelations_time = time.time()
 	if dictCorrIndex:
 		dictProtocolcorr = findProtocolsRecomended(dictCorrIndex)
+		findProtocolsRecomended_time = time.time()
+
 		#collectReportAboutProtocol(dictProtocolcorrSorted)
 		printRecomendations(dictProtocolcorr)
 	else:
 		print(f'None protocol recomended based on the user question:\n {userQuestion}')
+
+
+	#TIMES
+	print(f'Time constants: {constantEND_time - start_time} s')
+	print(f'Time parseUserQuestion_time: {parseUserQuestion_time - constantEND_time} s')
+	print(f'Time embedUserQuestion_time: {embedUserQuestion_time - parseUserQuestion_time} s')
+	print(f'Time searchOnIndexFaiss_time: {searchOnIndexFaiss_time - embedUserQuestion_time} s')
+	print(f'Time evaluateCorrelations_time: {evaluateCorrelations_time - searchOnIndexFaiss_time} s')
+	print(f'Time findProtocolsRecomended_time: {findProtocolsRecomended_time - evaluateCorrelations_time} s')
+	print(f'Time TOTAL: {findProtocolsRecomended_time - start_time} s')
