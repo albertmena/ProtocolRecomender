@@ -101,6 +101,9 @@ if __name__ == "__main__":
 	userQuestionVector = embedUserQuestion(userQuestion)
 	correlation, index = searchOnIndexFaiss(userQuestionVector=userQuestionVector)
 	dictCorrIndex = evaluateCorrelations(correlation, index)
-	dictProtocolcorr = findProtocolsRecomended(dictCorrIndex)
-	#collectReportAboutProtocol(dictProtocolcorrSorted)
-	printRecomendations(dictProtocolcorr)
+	if dictCorrIndex:
+		dictProtocolcorr = findProtocolsRecomended(dictCorrIndex)
+		#collectReportAboutProtocol(dictProtocolcorrSorted)
+		printRecomendations(dictProtocolcorr)
+	else:
+		print(f'None protocol recomended based on the user question:\n {userQuestion}')

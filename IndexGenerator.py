@@ -230,7 +230,7 @@ def requestDSFillMap(dictProtocolFile):
                 print(f'{len(dictVectors[key][protocol][SUMMARY])} vectors SUMMARY\n{len(dictVectors[key][protocol][PARAMETERS])} vectors PARAMETERS')
 
             with open (fileDS, 'a', encoding="utf-8") as fDS:
-                fDS.write(f'----------------------\nPLUGIN: {key} PROTOCOL: {protocol}\nSUMMARY: {summaryPhrases}\n\nPARAMETERS: {parametersPhrases}\n\n')
+                fDS.write(f'----------------------\nPLUGIN: {key}\nPROTOCOL: {protocol}\nSUMMARY: {summaryPhrases}\n\nPARAMETERS: {parametersPhrases}\n\n')
     return dictVectors
 
 def savingDictListVect2(dictIndexMap, plugin, protocol, rowCounter):
