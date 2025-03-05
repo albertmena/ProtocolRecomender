@@ -55,9 +55,11 @@ def parseUserQuestion():
 
     return userQuestion
 
+
+
 def embedUserQuestion(embedUserQuestion):
     userQuestionVector = embeddings.embed_query(embedUserQuestion)
-    return userQuestionVector
+    return np.array(userQuestionVector).reshape(1, -1)
 
 
 def searchOnIndexFaiss(userQuestionVector):
@@ -65,17 +67,15 @@ def searchOnIndexFaiss(userQuestionVector):
 	return indexFaiss.search(userQuestionVector, k=VECTORS_SEARCHED)
 
 
-
 def evaluateCorrelations(correlation, index):
 	#Save and sort by correlation a dictCorrIndex
 	dictCorrIndex = {}
-	for i in VECTORS_SEARCHED:
+	for i in range(VECTORS_SEARCHED):
 		if correlation[0, i] == -1 or correlation[0, i] < MINIMUM_CORRELATION_REQUIRED:
 			continue
-		dictCorrIndex["correlation"].append(correlation[0, i])
-		dictCorrIndex["index"].append(index[0, i])
+		dictCorrIndex[index[0, i]] = correlation[0, i]
 
-	dictCorrIndex["correlation"], dictCorrIndex["index"] = zip(*sorted(zip(dictCorrIndex["correlation"], dictCorrIndex["index"])))
+	dictCorrIndex = dict(sorted(dictCorrIndex.items(), key=lambda item: item[1], reverse=True))
 	return dictCorrIndex
 
 
@@ -83,26 +83,15 @@ def findProtocolsRecomended(dictCorrIndex):
 	with open(JSON_MAP, "r", encoding="utf-8") as file:
 		dictMap = json.load(file)
 	dictProtocolcorr = {}
-	for idx, cor  in dictCorrIndex:
-		for i in idx:
-			protocol = dictMap['VECTORS'][str(dictCorrIndex[i])]['PROTOCOL']
-			if protocol not in dictProtocolcorr:
-				dictProtocolcorr[protocol] = 0
-			dictProtocolcorr[protocol] = dictCorrIndex['correlation'][i]
+	for i, (key, value) in enumerate(dictCorrIndex.items()):
+		dictProtocolcorr[i] = {'PLUGIN': dictMap['VECTORS'][str(key)]['PLUGIN'],
+							   'PROTOCOL': dictMap['VECTORS'][str(key)]['PROTOCOL'],
+							   'CORRELATION': value}
 	return  dictProtocolcorr
 
 
-
-def sortProtocolsRecomended(dictProtocolcorr):
-	dictPluginProtocolCor = {}
-	return dict(sorted(dictProtocolcorr.items(), key=lambda item: item[1]))
-
-	# plugin = dictMap['VECTORS'][str(dictCorrIndex[i])]['PLUGIN']
-	# protocol = dictMap['VECTORS'][str(dictCorrIndex[i])]['PROTOCOL']
-	# bloc = dictMap['VECTORS'][str(dictCorrIndex[i])]['BLOC']
-
-def printRecomendations(dictProtocolcorrSorted):
-	print(f'Protocol recomended: {next(iter(dictProtocolcorrSorted.items()))}')
+def printRecomendations(dictProtocolcorr):
+	print(f'Protocol recomended: {next(iter(dictProtocolcorr.items()))}')
 
 
 
@@ -113,6 +102,5 @@ if __name__ == "__main__":
 	correlation, index = searchOnIndexFaiss(userQuestionVector=userQuestionVector)
 	dictCorrIndex = evaluateCorrelations(correlation, index)
 	dictProtocolcorr = findProtocolsRecomended(dictCorrIndex)
-	dictProtocolcorrSorted = sortProtocolsRecomended(dictProtocolcorr)
 	#collectReportAboutProtocol(dictProtocolcorrSorted)
-	printRecomendations(dictProtocolcorrSorted)
+	printRecomendations(dictProtocolcorr)

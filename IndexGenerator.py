@@ -59,9 +59,9 @@ JSON_MAP = 'indexMap.json'
 INDEX_VECTOR_DIMENSION = 768
 
 #questionForProtocols= f'Describe everything this Scipion protocol does in two blocs divided by {splitter} First, provide a summary (200 words) with the main keywords. Then, explain what does all the parameter (defineParameters) (200 words). Omit any tittle in the two blocs: \n'
-questionSummary = f'Can you provide a concise summary of around 200 words of this Scipion protocol? Please include the main keywords and highlight its purpose, key steps, and applications'
+questionSummary = f'Can you provide a concise summary of around 150 words of this Scipion protocol? Please avoid any corrections, commentary or enhancements. Stick strictly to the original content.:\n'
 #questionParameters = 'Can you provide a concise summary of around 200 words of the parameters of this Scipion protocol?'
-questionParameters = "Please provide a concise description, of the parameters defined in the defineParameters section of this Scipion protocol.Report just around 10 words for each parameter. Focus solely on listing and briefly explaining each parameter without making corrections or adding extra commentary."
+questionParameters = "Please provide a concise description, of the parameters defined in the defineParameters section of this Scipion protocol. Report just around 10 words for each parameter. Focus solely on listing and briefly explaining each parameter without making corrections or adding extra commentary. Stick strictly to the original content:\n"
 
 def listPlugins():
     listOfPlugins = []
@@ -149,16 +149,16 @@ def readingProtocols():
                                 #print(f"Clase encontrada: {node.name}")
                                 dictProtocolFile[plugin].update({node.name: file})
 
-	protocol_dict.pop("Scipion", None)
-	print(f'Registred: {len(dictProtocolFile)} plugins')
-	totalProtocols = 0
-	for key in dictProtocolFile.keys():
-		numProts = len(dictProtocolFile[key])
-		totalProtocols+= numProts
-		print(f'{key}: {len(dictProtocolFile[key])} protocols')
+    protocol_dict.pop("Scipion", None)
+    print(f'Registred: {len(dictProtocolFile)} plugins')
+    totalProtocols = 0
+    for key in dictProtocolFile.keys():
+        numProts = len(dictProtocolFile[key])
+        totalProtocols+= numProts
+        print(f'{key}: {len(dictProtocolFile[key])} protocols')
 
-	print(f'Total protocols registred: {totalProtocols}')
-	return dictProtocolFile
+    print(f'Total protocols registred: {totalProtocols}')
+    return dictProtocolFile
 
 
 def responseDeepSeek(questionForProtocols: str, ProtocolStr:str ):
@@ -203,13 +203,14 @@ def requestDSFillMap(dictProtocolFile):
     dictVectors = {}
     num_PLugins = len(dictProtocolFile.keys())
     index = 0
+    with open(fileDS, 'w', encoding="utf-8") as fDS:
+        fDS.write(f'\nDate: {date.today()}\n')
     for key in dictProtocolFile.keys():
         index+=1
-        print(f'Plugin {index}/{num_PLugins}')
         with open(fileDS, 'a', encoding="utf-8") as fDS:
-            fDS.write(
-                f'\n\n###############\nPLUGIN: {key} \n')
+            fDS.write(f'\n\n###############\nPLUGIN: {key} \n')
         print(f'\n\n#############plugin: {key}')
+        print(f'Plugin {index}/{num_PLugins}')
         dictVectors[key] = {}
         for protocol in dictProtocolFile[key]:
             print(f'\n-----------protocol: {protocol}')
@@ -226,8 +227,10 @@ def requestDSFillMap(dictProtocolFile):
                 print(f'Time parameters request:  {(time.time() - time1)/60} min')
                 dictVectors[key][protocol][SUMMARY] = embedPhrases(summaryPhrases.split('.'))
                 dictVectors[key][protocol][PARAMETERS] = embedPhrases(parametersPhrases.split('.'))
+                print(f'{len(dictVectors[key][protocol][SUMMARY])} vectors SUMMARY\n{len(dictVectors[key][protocol][PARAMETERS])} vectors PARAMETERS')
+
             with open (fileDS, 'a', encoding="utf-8") as fDS:
-                fDS.write(f'PLUGIN: {key} PROTOCOL: {protocol}\nSUMMARY: {summaryPhrases}\n\nPARAMETERS: {parametersPhrases}\n\n')
+                fDS.write(f'----------------------\nPLUGIN: {key} PROTOCOL: {protocol}\nSUMMARY: {summaryPhrases}\n\nPARAMETERS: {parametersPhrases}\n\n')
     return dictVectors
 
 def savingDictListVect2(dictIndexMap, plugin, protocol, rowCounter):
@@ -247,12 +250,13 @@ def indexMap(dictVectors):
                               "Plugins collected": ', '.join(list(dictProtocolFile.keys()))},
                     "VECTORS": {},
                     }
-
+    rowCounter = -1
     for plugin in dictVectors.keys():
-        rowCounter = -1
         for protocol in dictVectors[plugin]:
-            indexMapArray = np.vstack([indexMapArray, dictVectors[plugin][protocol][SUMMARY]])
-            indexMapArray = np.vstack([indexMapArray, dictVectors[plugin][protocol][PARAMETERS]])
+            arraySummary = np.array(dictVectors[plugin][protocol][SUMMARY])
+            arrayParameters = np.array(dictVectors[plugin][protocol][PARAMETERS])
+            indexMapArray = np.vstack([indexMapArray, arraySummary])
+            indexMapArray = np.vstack([indexMapArray, arrayParameters])
             rowCounter = savingDictListVect2(dictIndexMap, plugin, protocol, rowCounter)
 
 
@@ -274,12 +278,13 @@ def writtingIndexFaissFile():
 
 
 if __name__ == "__main__":
-	# listOfPlugins, dictPlugins = listPlugins()
-	# listOfPlugins = ['scipion-em-motioncorr', 'scipion-em-aretomo']
-	# dictPlugins = {dictPlugins['scipion-em-motioncorr'], dictPlugins['scipion-em-aretomo']}
-	# if INSTALL_PLUGINS: installAllPlugins(listOfPlugins, dictPlugins)
-	dictProtocolFile = readingProtocols()
-	#dictProtocolFile = {'motioncorr': dictProtocolFile['motioncorr'], 'aretomo': dictProtocolFile['aretomo']} #JUST TO DEBUG
-	dictVectors = requestDSFillMap(dictProtocolFile)
-	indexMap(dictVectors)
-	writtingIndexFaissFile()
+    # listOfPlugins, dictPlugins = listPlugins()
+    # listOfPlugins = ['scipion-em-motioncorr', 'scipion-em-aretomo']
+    # dictPlugins = {dictPlugins['scipion-em-motioncorr'], dictPlugins['scipion-em-aretomo']}
+    # if INSTALL_PLUGINS: installAllPlugins(listOfPlugins, dictPlugins)
+    dictProtocolFile = readingProtocols()
+    #dictProtocolFile = {'motioncorr': dictProtocolFile['motioncorr'], 'aretomo': dictProtocolFile['aretomo']} #JUST TO DEBUG
+    dictProtocolFile = {'atsas': dictProtocolFile['atsas'], 'repic': dictProtocolFile['repic']} #JUST TO DEBUG
+    dictVectors = requestDSFillMap(dictProtocolFile)
+    indexMap(dictVectors)
+    writtingIndexFaissFile()
