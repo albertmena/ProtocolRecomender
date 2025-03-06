@@ -51,7 +51,7 @@ def parseUserQuestion():
     args = parser.parse_args()
     userQuestion = args.userQuestion
     if userQuestion == "":
-        userQuestion = 'align movies'
+        userQuestion = 'Withdraw particles'
 
     if len(userQuestion) > SIZE_USER_QUESTION:
         print(f'the size of the question is larger than {SIZE_USER_QUESTION}')
@@ -114,26 +114,27 @@ def assignScore2Protocols(dictProtocolcorr):
 	starString = '\u2605'
 	for p in dictProtocolScore.keys():
 		corr = dictProtocolScore[p]
+		corrPrint = round(corr, 2)
 		if corr > startValue * 9:
-			print(f'Protocol: {p} {starString * 10} {corr}')
+			print(f'Protocol: {p} {starString * 10} {corrPrint}')
 		elif corr > startValue * 8:
-			print(f'Protocol: {p} {starString * 9} {corr}')
+			print(f'Protocol: {p} {starString * 9} {corrPrint}')
 		elif corr > startValue * 7:
-			print(f'Protocol: {p} {starString * 8} {corr}')
+			print(f'Protocol: {p} {starString * 8} {corrPrint}')
 		elif corr > startValue * 6:
-			print(f'Protocol: {p} {starString * 7} {corr}')
+			print(f'Protocol: {p} {starString * 7} {corrPrint}')
 		elif corr > startValue * 5:
-			print(f'Protocol: {p} {starString * 6} {corr}')
+			print(f'Protocol: {p} {starString * 6} {corrPrint}')
 		elif corr > startValue * 4:
-			print(f'Protocol: {p} {starString * 5} {corr}')
+			print(f'Protocol: {p} {starString * 5} {corrPrint}')
 		elif corr > startValue * 3:
-			print(f'Protocol: {p} {starString * 4} {corr}')
+			print(f'Protocol: {p} {starString * 4} {corrPrint}')
 		elif corr > startValue * 2:
-			print(f'Protocol: {p} {starString * 3} {corr}')
+			print(f'Protocol: {p} {starString * 3} {corrPrint}')
 		elif corr > startValue:
-			print(f'Protocol: {p} {starString * 2} {corr}')
+			print(f'Protocol: {p} {starString * 2} {corrPrint}')
 		else:
-			print(f'Protocol: {p} {starString } {corr}')
+			print(f'Protocol: {p} {starString } {corrPrint}')
 
 
 
