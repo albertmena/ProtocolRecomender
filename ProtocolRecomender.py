@@ -38,7 +38,7 @@ INDEX_VECTOR_DIMENSION = 768
 NPY_FILE = 'indexMap.npy'
 FAISS_FILE= 'indexMap.faiss'
 JSON_MAP = 'indexMap.json'
-VECTORS_SEARCHED = 15
+VECTORS_SEARCHED = 30
 MINIMUM_CORRELATION_REQUIRED = 0.3
 #####CONFIGURATIONS
 embeddings = HuggingFaceEmbeddings(model_name="sentence-transformers/all-mpnet-base-v2")
@@ -50,8 +50,8 @@ def parseUserQuestion():
 
     args = parser.parse_args()
     userQuestion = args.userQuestion
-    if userQuestion is None:
-        userQuestion = 'a protocol to align movies'
+    if userQuestion == "":
+        userQuestion = 'align movies'
 
     if len(userQuestion) > SIZE_USER_QUESTION:
         print(f'the size of the question is larger than {SIZE_USER_QUESTION}')
@@ -94,8 +94,50 @@ def findProtocolsRecomended(dictCorrIndex):
 
 
 def printRecomendations(dictProtocolcorr):
-	print(f'Protocol recomended: {next(iter(dictProtocolcorr.items()))}')
+	for i in range(15):
+		if i in dictProtocolcorr:
+	 		print(f"Protocol: {dictProtocolcorr[i]['PLUGIN']} - {dictProtocolcorr[i]['PROTOCOL']} - {dictProtocolcorr[i]['CORRELATION']}")
 
+def assignScore2Protocols(dictProtocolcorr):
+	dictProtocolScore = {}
+	for i in range(15):
+		if i in dictProtocolcorr:
+			if dictProtocolcorr[i]['PROTOCOL'] in dictProtocolScore:
+				dictProtocolScore[dictProtocolcorr[i]['PROTOCOL']] +=  dictProtocolcorr[i]['CORRELATION']
+			else:
+				dictProtocolScore[dictProtocolcorr[i]['PROTOCOL']] =  dictProtocolcorr[i]['CORRELATION']
+
+	#Let's assign one to three starts based on the correlation of the main vectors
+	dictProtocolScore = dict(sorted(dictProtocolScore.items(), key=lambda item: item[1]))
+	dictProtocolScore = dict(reversed(dictProtocolScore.items()))
+	startValue = (VECTORS_SEARCHED - MINIMUM_CORRELATION_REQUIRED) / 10
+	starString = '\u2605'
+	for p in dictProtocolScore.keys():
+		corr = dictProtocolScore[p]
+		if corr > startValue * 9:
+			print(f'Protocol: {p} {starString * 10} {corr}')
+		elif corr > startValue * 8:
+			print(f'Protocol: {p} {starString * 9} {corr}')
+		elif corr > startValue * 7:
+			print(f'Protocol: {p} {starString * 8} {corr}')
+		elif corr > startValue * 6:
+			print(f'Protocol: {p} {starString * 7} {corr}')
+		elif corr > startValue * 5:
+			print(f'Protocol: {p} {starString * 6} {corr}')
+		elif corr > startValue * 4:
+			print(f'Protocol: {p} {starString * 5} {corr}')
+		elif corr > startValue * 3:
+			print(f'Protocol: {p} {starString * 4} {corr}')
+		elif corr > startValue * 2:
+			print(f'Protocol: {p} {starString * 3} {corr}')
+		elif corr > startValue:
+			print(f'Protocol: {p} {starString * 2} {corr}')
+		else:
+			print(f'Protocol: {p} {starString } {corr}')
+
+
+
+	return dictProtocolScore
 
 
 if __name__ == "__main__":
@@ -112,16 +154,17 @@ if __name__ == "__main__":
 		findProtocolsRecomended_time = time.time()
 
 		#collectReportAboutProtocol(dictProtocolcorrSorted)
-		printRecomendations(dictProtocolcorr)
+		assignScore2Protocols(dictProtocolcorr)
+		#printRecomendations(dictProtocolcorr)
 	else:
 		print(f'None protocol recomended based on the user question:\n {userQuestion}')
 
 
 	#TIMES
-	print(f'Time constants: {constantEND_time - start_time} s')
-	print(f'Time parseUserQuestion_time: {parseUserQuestion_time - constantEND_time} s')
-	print(f'Time embedUserQuestion_time: {embedUserQuestion_time - parseUserQuestion_time} s')
-	print(f'Time searchOnIndexFaiss_time: {searchOnIndexFaiss_time - embedUserQuestion_time} s')
-	print(f'Time evaluateCorrelations_time: {evaluateCorrelations_time - searchOnIndexFaiss_time} s')
-	print(f'Time findProtocolsRecomended_time: {findProtocolsRecomended_time - evaluateCorrelations_time} s')
+	# print(f'Time constants: {constantEND_time - start_time} s')
+	# print(f'Time parseUserQuestion_time: {parseUserQuestion_time - constantEND_time} s')
+	# print(f'Time embedUserQuestion_time: {embedUserQuestion_time - parseUserQuestion_time} s')
+	# print(f'Time searchOnIndexFaiss_time: {searchOnIndexFaiss_time - embedUserQuestion_time} s')
+	# print(f'Time evaluateCorrelations_time: {evaluateCorrelations_time - searchOnIndexFaiss_time} s')
+	# print(f'Time findProtocolsRecomended_time: {findProtocolsRecomended_time - evaluateCorrelations_time} s')
 	print(f'Time TOTAL: {findProtocolsRecomended_time - start_time} s')

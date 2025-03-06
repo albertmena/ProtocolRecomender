@@ -284,7 +284,7 @@ if __name__ == "__main__":
     # if INSTALL_PLUGINS: installAllPlugins(listOfPlugins, dictPlugins)
     dictProtocolFile = readingProtocols()
     #dictProtocolFile = {'motioncorr': dictProtocolFile['motioncorr'], 'aretomo': dictProtocolFile['aretomo']} #JUST TO DEBUG
-    dictProtocolFile = {'atsas': dictProtocolFile['atsas'], 'repic': dictProtocolFile['repic']} #JUST TO DEBUG
+    dictProtocolFile = {'motioncorr': dictProtocolFile['motioncorr'], 'xmipp3': dictProtocolFile['xmipp3']} #JUST TO DEBUG
     dictVectors = requestDSFillMap(dictProtocolFile)
     indexMap(dictVectors)
     writtingIndexFaissFile()
