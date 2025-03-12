@@ -37,12 +37,19 @@ import json
 from datetime import date
 import time
 import faiss #faiss-cpu
-
+from pathlib import Path
+from datetime import datetime
 
 #####CONFIGURATIONS
 embeddings = HuggingFaceEmbeddings(model_name="sentence-transformers/all-mpnet-base-v2")
 #'sentence-transformers/gtr-t5-large'
 model = "deepseek-r1:70b" #40GC 70.6B parameters
+#model = "deepseek-r1:671b" #40GC 70.6B parameters
+now = datetime.now()
+formatted_date = now.strftime("%Y-%m-%d_%H-%M-%S")
+fileName = f'Map_{formatted_date}'
+PATH_MAP = os.path.join(Path.cwd(), fileName)
+
 INSTALL_PLUGINS = False
 SCIPION_ENVIROMENT_NAME = "scipionProtocolRecomender"
 PATH_SCIPION_INSTALLED = '/home/agarcia/scipionProtocolRecomender'
@@ -59,9 +66,10 @@ JSON_MAP = 'indexMap.json'
 INDEX_VECTOR_DIMENSION = 768
 
 #questionForProtocols= f'Describe everything this Scipion protocol does in two blocs divided by {splitter} First, provide a summary (200 words) with the main keywords. Then, explain what does all the parameter (defineParameters) (200 words). Omit any tittle in the two blocs: \n'
-questionSummary = f'Can you provide a concise summary of around 150 words of this Scipion protocol? Please avoid any corrections, commentary or enhancements. Stick strictly to the original content.:\n'
+questionSummary = f'Can you provide a concise summary to a basic user of about 100 words on what this protocol does? Please avoid any corrections or enhancements:\n'
 #questionParameters = 'Can you provide a concise summary of around 200 words of the parameters of this Scipion protocol?'
-questionParameters = "Please provide a concise description, of the parameters defined in the defineParameters section of this Scipion protocol. Report just around 10 words for each parameter. Focus solely on listing and briefly explaining each parameter without making corrections or adding extra commentary. Stick strictly to the original content:\n"
+questionParameters = "Please provide a concise description for a basic user of what each of the parameters in the defineParameters section does. Report just around 10 words for each parameter:\n"
+questionHelpParams = " Provide a concise summary for a basic user of what this protocol of Scipion does. Report just 150 words, avoid any corrections or enhancements\n. I share the main help and a section of parameters for you to understand it"
 
 def listPlugins():
     listOfPlugins = []
@@ -192,6 +200,44 @@ def classTexted(scriptTexted, protocol):
                 return "\n".join(
                     scriptTexted.splitlines()[start_line:end_line])
 #
+
+def defineParamsTexted(scriptTexted):
+    stringFunc = ''
+    tree = ast.parse(scriptTexted)
+    for node in ast.walk(tree):
+        if isinstance(node, ast.FunctionDef):
+            if node.name in ['_defineProcessParams', '_defineParams', '_defineImportParams', '_defineAcquisitionParams']:
+                start_line = node.lineno - 1  # Las líneas en AST comienzan desde 1
+                end_line = getattr(node, "end_lineno", None)
+                if end_line is None:
+                    end_line = max((child.lineno for child in ast.walk(node) if hasattr(child, "lineno")), default=start_line)
+                stringFunc += "\n".join(scriptTexted.splitlines()[start_line:end_line]) + "\n\n"
+    return stringFunc
+
+
+def helpProtocolStr(scriptTexted):
+    tree = ast.parse(scriptTexted)
+    for node in ast.walk(tree):
+        if isinstance(node, ast.ClassDef):
+            if node.body and isinstance(node.body[0], ast.Expr):
+                docstring_node = node.body[0].value
+                if isinstance(docstring_node, ast.Str) or isinstance(docstring_node, ast.Constant):
+                    return docstring_node.s
+    return None
+
+
+def extract_label_protocol(scriptTexted):
+    tree = ast.parse(scriptTexted)
+    for node in ast.walk(tree):
+        if isinstance(node, ast.ClassDef):
+            for stmt in node.body:
+                if isinstance(stmt, ast.Assign):  #
+                    for target in stmt.targets:
+                        if isinstance(target, ast.Name) and target.id == '_label':
+                            if isinstance(stmt.value, ast.Str) or isinstance(stmt.value, ast.Constant):
+                                return stmt.value.s
+
+
 def embedPhrases(listPhrases):
     listVectors = []
     for p in listPhrases:
@@ -207,34 +253,43 @@ def requestDSFillMap(dictProtocolFile):
         fDS.write(f'\nDate: {date.today()}\n')
     for key in dictProtocolFile.keys():
         index+=1
+        num_Protocols = len(dictProtocolFile[key])
+        indexProt = 0
         with open(fileDS, 'a', encoding="utf-8") as fDS:
-            fDS.write(f'\n\n###############\nPLUGIN: {key} \n')
+            fDS.write(f'\n\n###########################\nPLUGIN: {key} \n')
         print(f'\n\n#############plugin: {key}')
         print(f'Plugin {index}/{num_PLugins}')
         dictVectors[key] = {}
         for protocol in dictProtocolFile[key]:
-            print(f'\n-----------protocol: {protocol}')
+            indexProt += 1
+            print(f'\n-----------protocol {indexProt}/{num_Protocols}: {protocol} ')
             dictVectors[key][protocol] = {}
             file = dictProtocolFile[key][protocol]
             with open(file, "r", encoding="utf-8") as f:
                 scriptTexted = f.read()
                 protocolString = classTexted(scriptTexted, protocol)
                 time0 = time.time()
-                summaryPhrases = responseDeepSeek(questionForProtocols=questionSummary, ProtocolStr=protocolString)
+                #summaryPhrases = responseDeepSeek(questionForProtocols=questionSummary, ProtocolStr=protocolString)
+                #time1 = time.time()
+                #print(f'Time summary request:  {(time1 - time0)/60} min')
+                helpProtocol = helpProtocolStr(protocolString)
+                labelProtocol = extract_label_protocol(protocolString)
+                defineParamsString = defineParamsTexted(protocolString)
+                #parametersPhrases = responseDeepSeek(questionForProtocols=questionParameters, ProtocolStr=protocolString)
+                helpParamsPhrases = responseDeepSeek(questionForProtocols=questionHelpParams, ProtocolStr=labelProtocol + '\n' + helpProtocol + '\n' + defineParamsString)
                 time1 = time.time()
-                print(f'Time summary request:  {(time1 - time0)/60} min')
-                parametersPhrases = responseDeepSeek(questionForProtocols=questionParameters, ProtocolStr=protocolString)
-                print(f'Time parameters request:  {(time.time() - time1)/60} min')
-                dictVectors[key][protocol][SUMMARY] = embedPhrases(summaryPhrases.split('.'))
-                dictVectors[key][protocol][PARAMETERS] = embedPhrases(parametersPhrases.split('.'))
-                print(f'{len(dictVectors[key][protocol][SUMMARY])} vectors SUMMARY\n{len(dictVectors[key][protocol][PARAMETERS])} vectors PARAMETERS')
+                print(f'Time parameters request:  {(time1 - time0)/60} min')
+                dictVectors[key][protocol][SUMMARY] = embedPhrases(helpParamsPhrases.split('.'))
+                #dictVectors[key][protocol][PARAMETERS] = embedPhrases(parametersPhrases.split('.'))
+                print(f'{len(dictVectors[key][protocol][SUMMARY])} vectors SUMMARY\n')
+                #print(f'{len(dictVectors[key][protocol][SUMMARY])} vectors SUMMARY\n{len(dictVectors[key][protocol][PARAMETERS])} vectors PARAMETERS')
 
             with open (fileDS, 'a', encoding="utf-8") as fDS:
-                fDS.write(f'----------------------\nPLUGIN: {key}\nPROTOCOL: {protocol}\nSUMMARY: {summaryPhrases}\n\nPARAMETERS: {parametersPhrases}\n\n')
+                fDS.write(f'-------------------------------------\nPLUGIN: {key}\nPROTOCOL: {protocol}\nSUMMARY: {helpParamsPhrases}\n\n')
     return dictVectors
 
 def savingDictListVect2(dictIndexMap, plugin, protocol, rowCounter):
-    for b in [SUMMARY, PARAMETERS]:
+    for b in [SUMMARY]:
         for item in list(range(len(dictVectors[plugin][protocol][b]))):
             stepIndex = item + 1 #loop starts with 0, we need 1 to increase the value
             dictIndexMap["VECTORS"][rowCounter + stepIndex] = {'PLUGIN':plugin, 'PROTOCOL':protocol, 'BLOC': b}
@@ -245,7 +300,7 @@ def indexMap(dictVectors):
     indexMapArray = np.empty((0, 768))
     dictIndexMap = {'header':{"description": "This JSON file contains sentence embeddings.",
                               "index_info": "Each value represent the index in the indexMap.npy that represent the embeddig of each phrase.",
-                              "usage": "These embeddings can be easy search with the plugin,  protocol  and blocs: summary, parameters.",
+                              "usage": "These embeddings can be easy search with the plugin, protocol and summary.",
                               "Date": f'{date.today()}',
                               "Plugins collected": ', '.join(list(dictProtocolFile.keys()))},
                     "VECTORS": {},
@@ -254,11 +309,8 @@ def indexMap(dictVectors):
     for plugin in dictVectors.keys():
         for protocol in dictVectors[plugin]:
             arraySummary = np.array(dictVectors[plugin][protocol][SUMMARY])
-            arrayParameters = np.array(dictVectors[plugin][protocol][PARAMETERS])
             indexMapArray = np.vstack([indexMapArray, arraySummary])
-            indexMapArray = np.vstack([indexMapArray, arrayParameters])
             rowCounter = savingDictListVect2(dictIndexMap, plugin, protocol, rowCounter)
-
 
     np.save(NPY_FILE, indexMapArray)
     with open(JSON_MAP, "w", encoding="utf-8") as f:
@@ -278,13 +330,16 @@ def writtingIndexFaissFile():
 
 
 if __name__ == "__main__":
+    os.makedirs(PATH_MAP, exist_ok=True)
+    os.chdir(PATH_MAP)
     # listOfPlugins, dictPlugins = listPlugins()
     # listOfPlugins = ['scipion-em-motioncorr', 'scipion-em-aretomo']
     # dictPlugins = {dictPlugins['scipion-em-motioncorr'], dictPlugins['scipion-em-aretomo']}
     # if INSTALL_PLUGINS: installAllPlugins(listOfPlugins, dictPlugins)
     dictProtocolFile = readingProtocols()
+    dictProtocolFile = { 'aretomo': dictProtocolFile['aretomo']} #JUST TO DEBUG
     #dictProtocolFile = {'motioncorr': dictProtocolFile['motioncorr'], 'aretomo': dictProtocolFile['aretomo']} #JUST TO DEBUG
-    dictProtocolFile = {'motioncorr': dictProtocolFile['motioncorr'], 'xmipp3': dictProtocolFile['xmipp3']} #JUST TO DEBUG
+    #dictProtocolFile = {'motioncorr': dictProtocolFile['motioncorr'], 'xmipp3': dictProtocolFile['xmipp3']} #JUST TO DEBUG
     dictVectors = requestDSFillMap(dictProtocolFile)
     indexMap(dictVectors)
     writtingIndexFaissFile()

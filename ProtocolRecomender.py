@@ -30,9 +30,12 @@ import faiss #faiss-cpu
 import numpy as np
 import json
 import time
+from pathlib import Path
+import os
 
 start_time = time.time()
 ######CONSTANTS
+PATH_MAP = '/home/agarcia/ProtocolRecomender/'
 SIZE_USER_QUESTION = 100
 INDEX_VECTOR_DIMENSION = 768
 NPY_FILE = 'indexMap.npy'
@@ -51,7 +54,7 @@ def parseUserQuestion():
     args = parser.parse_args()
     userQuestion = args.userQuestion
     if userQuestion == "":
-        userQuestion = 'Withdraw particles'
+        userQuestion = 'create initial volume'
 
     if len(userQuestion) > SIZE_USER_QUESTION:
         print(f'the size of the question is larger than {SIZE_USER_QUESTION}')
@@ -142,6 +145,8 @@ def assignScore2Protocols(dictProtocolcorr):
 
 
 if __name__ == "__main__":
+	os.chdir(PATH_MAP)
+	print(f'Map path: {Path.cwd()}')
 	userQuestion = parseUserQuestion()
 	parseUserQuestion_time = time.time()
 	userQuestionVector = embedUserQuestion(userQuestion)
