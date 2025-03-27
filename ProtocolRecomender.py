@@ -35,13 +35,13 @@ import os
 
 start_time = time.time()
 ######CONSTANTS
-PATH_MAP = '/home/agarcia/ProtocolRecomender/'
+PATH_MAP = '/home/agarcia/ProtocolRecomender/Map_2025-03-20_14-23-27'
 SIZE_USER_QUESTION = 100
 INDEX_VECTOR_DIMENSION = 768
 NPY_FILE = 'indexMap.npy'
 FAISS_FILE= 'indexMap.faiss'
 JSON_MAP = 'indexMap.json'
-VECTORS_SEARCHED = 30
+VECTORS_SEARCHED = 300
 MINIMUM_CORRELATION_REQUIRED = 0.3
 #####CONFIGURATIONS
 embeddings = HuggingFaceEmbeddings(model_name="sentence-transformers/all-mpnet-base-v2")
@@ -49,12 +49,12 @@ embeddings = HuggingFaceEmbeddings(model_name="sentence-transformers/all-mpnet-b
 constantEND_time = time.time()
 def parseUserQuestion():
     parser = argparse.ArgumentParser(description='Example arg')
-    parser.add_argument('userQuestion', type=str, help='question to recomend a protocol')
+    parser.add_argument('userQuestion', type=str, help='question to recommend a protocol')
 
     args = parser.parse_args()
     userQuestion = args.userQuestion
     if userQuestion == "":
-        userQuestion = 'create initial volume'
+        userQuestion = 'I want to align a fish'
 
     if len(userQuestion) > SIZE_USER_QUESTION:
         print(f'the size of the question is larger than {SIZE_USER_QUESTION}')
@@ -155,9 +155,9 @@ if __name__ == "__main__":
 	searchOnIndexFaiss_time = time.time()
 	dictCorrIndex = evaluateCorrelations(correlation, index)
 	evaluateCorrelations_time = time.time()
+	findProtocolsRecomended_time = time.time()
 	if dictCorrIndex:
 		dictProtocolcorr = findProtocolsRecomended(dictCorrIndex)
-		findProtocolsRecomended_time = time.time()
 
 		#collectReportAboutProtocol(dictProtocolcorrSorted)
 		assignScore2Protocols(dictProtocolcorr)
@@ -170,7 +170,7 @@ if __name__ == "__main__":
 	# print(f'Time constants: {constantEND_time - start_time} s')
 	# print(f'Time parseUserQuestion_time: {parseUserQuestion_time - constantEND_time} s')
 	# print(f'Time embedUserQuestion_time: {embedUserQuestion_time - parseUserQuestion_time} s')
-	# print(f'Time searchOnIndexFaiss_time: {searchOnIndexFaiss_time - embedUserQuestion_time} s')
+	print(f'Time searchOnIndexFaiss_time: {searchOnIndexFaiss_time - embedUserQuestion_time} s')
 	# print(f'Time evaluateCorrelations_time: {evaluateCorrelations_time - searchOnIndexFaiss_time} s')
 	# print(f'Time findProtocolsRecomended_time: {findProtocolsRecomended_time - evaluateCorrelations_time} s')
 	print(f'Time TOTAL: {findProtocolsRecomended_time - start_time} s')
