@@ -35,7 +35,7 @@ import os
 
 start_time = time.time()
 ######CONSTANTS
-PATH_MAP = '/home/agarcia/ProtocolRecomender/Map_2025-03-20_14-23-27'
+PATH_MAP = '/home/agarcia/ProtocolRecomender/Map_2025-04-07_12-03-54'
 SIZE_USER_QUESTION = 100
 INDEX_VECTOR_DIMENSION = 768
 NPY_FILE = 'indexMap.npy'
@@ -54,7 +54,7 @@ def parseUserQuestion():
     args = parser.parse_args()
     userQuestion = args.userQuestion
     if userQuestion == "":
-        userQuestion = 'I want to align a fish'
+        userQuestion = 'I want to align movies'
 
     if len(userQuestion) > SIZE_USER_QUESTION:
         print(f'the size of the question is larger than {SIZE_USER_QUESTION}')
@@ -69,8 +69,8 @@ def embedUserQuestion(embedUserQuestion):
 
 
 def searchOnIndexFaiss(userQuestionVector):
-	indexFaiss = faiss.read_index(FAISS_FILE)
-	return indexFaiss.search(userQuestionVector, k=VECTORS_SEARCHED)
+    indexFaiss = faiss.read_index(FAISS_FILE)
+    return indexFaiss.search(userQuestionVector, k=VECTORS_SEARCHED)
 
 
 def evaluateCorrelations(correlation, index):

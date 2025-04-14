@@ -26,6 +26,7 @@
 # **************************************************************************
 
 import os
+import re
 import requests
 import subprocess
 from ollama import chat
@@ -47,7 +48,7 @@ modelDS = "deepseek-r1:70b" #70b 43GB
 modelMistral = "mistral" #7b 4.1GB
 modelWizardCode = "wizardcoder:33b" #33b 19GB
 modelLlama2 = "llama2:70b" #70b 39GB
-modelCodeLlama = "codellama:70b" #70b 39GB
+modelCodeLlama = "codellama:70b" #70b 39GB #muy censurador
 modelDSv2 = "deepseek-v2:236b" #236b 133GB -> problemas de memoria
 modelLlama33 = "llama3.3" #70b 43GB
 
@@ -64,6 +65,7 @@ SITE_PACKAGES ='/home/agarcia/miniconda/envs/scipionProtocolRecomender/lib/pytho
 #####CONSTANTS
 SUMMARY = 'summary'
 SCIENCE = 'science'
+QUICK = 'quickSummary'
 HELP = 'help'
 splitter = '------'
 fileDS = 'protocolsDescriptions.txt'
@@ -72,9 +74,14 @@ FAISS_FILE= 'indexMap.faiss'
 JSON_MAP = 'indexMap.json'
 INDEX_VECTOR_DIMENSION = 768
 
-questionSummary = [f'Can you provide a summary on no more than 100 words to a basic user on what the protocol "', '" of the plugin"', '" of Scipion does? Scipion is a software of cryoem. Please avoid any corrections or enhancements:\n']
-questionParameters = [f'Summarize the purpose of each label in the _defineParameters function of the tool "', '" an open software project. Be concise and report only 10 words for each label:\n']
-questionScience =  ['Provide only a summary of 100 words of what the protocol "', '" of the plugin "', '" of Scipion does. This is the main summary: ', '\nThis are the definitions of the parameters of the protocol:\n']
+#questionSummary = [f'Can you provide a summary on no more than 100 words to a basic user on what the protocol "', '" of the plugin"', '" of Scipion does? Scipion is a software of cryoem. Please avoid any corrections or enhancements:\n']
+questionSummary = [f'I need a summary on no more than 200 words to a basic user on what the protocol "', '" of the plugin"', '" does?. The protocol is part of a free and open software project. This is a main summary: "', '"\nThis text is about the inputs: "', '"\nThis are the outputs: "']
+questionSummary2 = [f'What the protocol "', '" of the plugin"', '" does? In 30 words. This is a main summary: "', '"\nThis text is about the inputs: "', '"\nThis are the outputs: "']
+#questionSummary[protocolName, pluginName, help, input, output, relationship]
+#questionParameters = f'Summarize, the input labels in the _defineParameters function, in exactly 120 words. \n'
+#questionScience =  ['Provide a summary of only 100 words of what the protocol "', '" of the plugin "', '" does. This is the main summary: ']
+questionParameters = f'I have a Python function that defines parameters in a form using form.addParam(...). Extract all the labels and the associated help text, in the following format: Label: Help.\n If there is no help text, just leave the help in blank. Avoid any suggestion, recomendation... Here is the code: '
+
 
 def listPlugins():
     listOfPlugins = []
@@ -190,15 +197,24 @@ def responseDeep(question: str, modelI:str):
     resp = response.message.content
     if modelI == modelDS:
         resp = resp[resp.find('</think>') + 8:]
+        resp = resp.replace('**', '')
     if modelI == modelCodeLlama:
         resp = resp.replace('**', '')
+    if modelI == modelLlama2:
+        indexA = resp.find('Sure!')
+        if indexA != -1:
+            indexB = resp[indexA:].find('\n') + 4
+            resp = resp[indexB:]
     if modelI == modelLlama33:
         indexA = resp.find('Here is a 100-word summary')
+        if indexA == -1:
+            indexA = resp.find('Here is a summary')
         if indexA != -1:
             indexB = resp[indexA:].find('\n')
             resp = resp[:indexA] + resp[indexB:]
 
         resp = resp.replace('**', '')
+
     return resp
 
 def protocol2Text(pathProtocol):
@@ -219,14 +235,18 @@ def classTexted(scriptTexted, protocol):
                             end_line = child_node.lineno
                 return "\n".join(
                     scriptTexted.splitlines()[start_line:end_line])
-#
+    print(f'classTexted ERROR on protocol: {protocol} ')
+    return ' '
+
 
 def defineParamsTexted(scriptTexted):
     stringFunc = ''
     tree = ast.parse(scriptTexted)
+    pattern = re.compile(r'_define.*Params')
     for node in ast.walk(tree):
         if isinstance(node, ast.FunctionDef):
-            if node.name in ['_defineProcessParams', '_defineParams', '_defineImportParams', '_defineAcquisitionParams']:
+            if pattern.match(node.name):
+            #if node.name in ['_defineProcessParams', '_defineParams', '_defineImportParams', '_defineAcquisitionParams', '_defineAlignmentParams']:
                 start_line = node.lineno - 1  # Las líneas en AST comienzan desde 1
                 end_line = getattr(node, "end_lineno", None)
                 if end_line is None:
@@ -243,10 +263,50 @@ def helpProtocolStr(scriptTexted):
                 docstring_node = node.body[0].value
                 if isinstance(docstring_node, ast.Str) or isinstance(docstring_node, ast.Constant):
                     return docstring_node.s
-    return None
+    return ''
+
+# def paramsRelationshpProtocolStr(scriptTexted):
+#     tree = ast.parse(scriptTexted)
+#     parameters = ''
+#     for node in ast.walk(tree):
+#         if isinstance(node, ast.Call):
+#             if isinstance(node.func, ast.Attribute):
+#                 if node.func.attr == "_defineSourceRelation" and isinstance(node.func.value, ast.Name) and node.func.value.id == "self":
+#                     call_params = ''
+#                     for arg in node.args:
+#                         if isinstance(arg, ast.Name):
+#                             call_params += ' ' + arg.id
+#                         elif isinstance(arg, ast.Attribute):
+#                             call_params += ' ' + arg.attr
+#                         elif isinstance(arg, ast.Constant):
+#                             call_params += ' ' + str(arg.value)
+#                     parameters += ' ' + call_params
+#     return parameters
+
+def outputsProtocolStr(scriptTexted):
+    tree = ast.parse(scriptTexted)
+    parameters = ''
+    for node in ast.walk(tree):
+        if isinstance(node, ast.Call):
+            if isinstance(node.func, ast.Attribute):
+                if node.func.attr == "_defineOutputs" and isinstance(node.func.value, ast.Name) and node.func.value.id == "self":
+                    call_params = ''
+                    for keyword in node.keywords:
+                        key = keyword.arg
+                        value = keyword.value
+                        if isinstance(value, ast.Name):
+                            call_params += ' ' + f"{key} = {value.id}"
+                        elif isinstance(value, ast.Attribute):
+                            call_params += ' ' + f"{key} = {value.attr}"
+                        elif isinstance(value, ast.Constant):
+                            call_params += ' ' + f"{key} = {value.value}"
+                    parameters += ' ' + call_params
+    return parameters
 
 
-def extract_label_protocol(scriptTexted):
+
+
+def extract_label_protocol(scriptTexted, protocol):
     tree = ast.parse(scriptTexted)
     for node in ast.walk(tree):
         if isinstance(node, ast.ClassDef):
@@ -256,6 +316,8 @@ def extract_label_protocol(scriptTexted):
                         if isinstance(target, ast.Name) and target.id == '_label':
                             if isinstance(stmt.value, ast.Str) or isinstance(stmt.value, ast.Constant):
                                 return stmt.value.s
+    print(f'extract_label_protocol ERROR on script: {scriptTexted[:30]}... ')
+    return ' '.join(re.sub(r'([a-z])([A-Z])', r'\1 \2', protocol).split()).lower()
 
 
 def embedPhrases(listPhrases):
@@ -291,34 +353,54 @@ def requestDSFillMap(dictProtocolFile):
                 scriptTexted = f.read()
                 protocolString = classTexted(scriptTexted, protocol)
                 helpProtocol = removeJumpLine(helpProtocolStr(protocolString))
-                labelProtocol = extract_label_protocol(protocolString)
+                labelProtocol = extract_label_protocol(protocolString, protocol)
                 defineParamsString = defineParamsTexted(protocolString)
+                outputsP = outputsProtocolStr(protocolString)
 
                 time0 = time.time()
-                question = questionSummary[0] + labelProtocol + questionSummary[1] +  key + questionSummary[2] + protocolString
-                summaryGeneral = removeJumpLine(responseDeep(question=question, modelI=modelDS))
+                # questionP = questionParameters + defineParamsString
+                # paramsSummary = responseDeep(question=questionP, modelI=modelWizardCode)
+                questionP = questionParameters + defineParamsString
+                paramsSummary = responseDeep(question=questionP, modelI=modelLlama2)
                 time1 = time.time()
-                questionP = questionParameters[0] + labelProtocol + questionParameters[1] + defineParamsString
-                paramsSummary = responseDeep(question=questionP, modelI=modelCodeLlama)
+                question = questionSummary[0] + labelProtocol + questionSummary[1] +  key + questionSummary[2] + helpProtocol + questionSummary[3] + paramsSummary  + questionSummary[4] + outputsP
+                # questionSummary[protocolName, pluginName, help, input, output, relationship]
+                summary = removeJumpLine(responseDeep(question=question, modelI=modelLlama33))
                 time2 = time.time()
-                questionS = questionScience[0] + labelProtocol + questionScience[1] + key + questionScience[2]  + summaryGeneral + questionScience[3] + paramsSummary
-                scienceSummary = responseDeep(question=questionS, modelI=modelLlama33)
+                question2 = questionSummary2[0] + labelProtocol + questionSummary2[1] +  key + questionSummary2[2] + helpProtocol + questionSummary2[3] + paramsSummary  + questionSummary2[4] + outputsP
+                summaryQuick = removeJumpLine(responseDeep(question=question2, modelI=modelDS))
                 time3 = time.time()
 
+
+                # time0 = time.time()
+                # question = questionSummary[0] + labelProtocol + questionSummary[1] +  key + questionSummary[2] + protocolString
+                # summaryGeneral = removeJumpLine(responseDeep(question=question, modelI=modelDS))
+                # time1 = time.time()
+                # questionP = questionParameters[0] + labelProtocol + questionParameters[1] + defineParamsString
+                # paramsSummary = responseDeep(question=questionP, modelI=modelCodeLlama)
+                # time2 = time.time()
+                # questionS = questionScience[0] + labelProtocol + questionScience[1] + key + questionScience[2]  + summaryGeneral + questionScience[3] + paramsSummary
+                # scienceSummary = responseDeep(question=questionS, modelI=modelLlama33)
+                # time3 = time.time()
+
                 dictVectors[key][protocol][HELP] = embedPhrases(helpProtocol.split('.'))
-                dictVectors[key][protocol][SUMMARY] = embedPhrases(summaryGeneral.split('.'))
-                dictVectors[key][protocol][SCIENCE] = embedPhrases(scienceSummary.split('.'))
-                print(f'{len(dictVectors[key][protocol][HELP])} vectors HELP\n{len(dictVectors[key][protocol][SUMMARY])} vectors SUMMARY\n{len(dictVectors[key][protocol][SCIENCE])} vectors PARAMETERS')
-                print(f'Time summary request:  {(time1 - time0)/60} min')
-                print(f'Time parameters request:  {(time2 - time1)/60} min')
-                print(f'Time science request:  {(time3 - time2)/60} min')
+                dictVectors[key][protocol][SUMMARY] = embedPhrases(summary.split('.'))
+                dictVectors[key][protocol][QUICK] = embedPhrases(summaryQuick.split('.'))
+                print(f'{len(dictVectors[key][protocol][HELP])} vectors HELP\n{len(dictVectors[key][protocol][SUMMARY])} vectors SUMMARY\n {len(dictVectors[key][protocol][QUICK])} vectors QUICK SUMMARY')
+                print(f'Time parameters request:  {(time1 - time0)/60} min')
+                print(f'Time summary general request:  {(time2 - time1)/60} min')
+                print(f'Time summary quick request:  {(time3 - time2)/60} min')
 
                 with open (fileDS, 'a', encoding="utf-8") as fDS:
-                    fDS.write(f'-------------------------------------\nPLUGIN: {key}\nPROTOCOL: {protocol}\nHELP: {helpProtocol}\nPARAMS:{paramsSummary}\nSUMMARY: {summaryGeneral}\nSCIENCE: {scienceSummary}\n\n')
+                    fDS.write(f'-------------------------------------\nPLUGIN: {key}\nPROTOCOL: {protocol}\n\n'
+                              f'### HELP: {helpProtocol}\n\n'
+                              f'### PARAMS:{paramsSummary}\n\n'
+                              f'### SUMMARY_science: {summary}\n\n'
+                              f'### SUMMARY_quick: {summaryQuick}\n\n')
     return dictVectors
 
 def savingDictListVect2(dictIndexMap, plugin, protocol, rowCounter):
-    for b in [HELP, SUMMARY, SCIENCE]:
+    for b in [HELP, SUMMARY, QUICK]:
         for item in list(range(len(dictVectors[plugin][protocol][b]))):
             stepIndex = item + 1 #loop starts with 0, we need 1 to increase the value
             dictIndexMap["VECTORS"][rowCounter + stepIndex] = {'PLUGIN':plugin, 'PROTOCOL':protocol, 'BLOC': b}
@@ -339,7 +421,7 @@ def indexMap(dictVectors):
         for protocol in dictVectors[plugin]:
             arrayHelp = np.array(dictVectors[plugin][protocol][HELP])
             arraySummary = np.array(dictVectors[plugin][protocol][SUMMARY])
-            arrayScience = np.array(dictVectors[plugin][protocol][SCIENCE])
+            arrayScience = np.array(dictVectors[plugin][protocol][QUICK])
             indexMapArray = np.vstack([indexMapArray, arrayHelp])
             indexMapArray = np.vstack([indexMapArray, arraySummary])
             indexMapArray = np.vstack([indexMapArray, arrayScience])
@@ -370,7 +452,7 @@ if __name__ == "__main__":
     dictProtocolFile = readingProtocols()
     #dictProtocolFile = { 'aretomo': dictProtocolFile['aretomo']} #JUST TO DEBUG
     #dictProtocolFile = {'motioncorr': dictProtocolFile['motioncorr']} #JUST TO DEBUG
-    dictProtocolFile = { 'xmipp3': dictProtocolFile['xmipp3']} #JUST TO DEBUG
+    #dictProtocolFile = { 'xmipp3': dictProtocolFile['xmipp3']} #JUST TO DEBUG
     dictVectors = requestDSFillMap(dictProtocolFile)
     indexMap(dictVectors)
     writtingIndexFaissFile()
